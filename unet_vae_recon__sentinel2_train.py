@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from collections import OrderedDict
 from torch.nn import init
-from unet.unet_parts import *
 from pathlib import Path
 from skimage import exposure
 import glob

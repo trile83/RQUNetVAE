@@ -33,10 +33,6 @@ from evaluate import evaluate
 dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
 #use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
 use_cuda = True
-#standard deviation of added noise after each training set
-sigma = 1./30
-#number of tracondaining iterations
-#num_steps = 100
 
 ##################################
 def rescale(image):

@@ -24,13 +24,13 @@ from torch.utils.data import Dataset
 from torch import optim
 from tqdm import tqdm
 
-from unet import UNet, UNet_VAE, UNet_VAE_Softshrink, UNet_VAE_Softshrink_All, UNet_VAE_RQ, UNet_VAE_Softshrink_All_trainable, UNet_S, UNet_VAE_old, UNet_VAE_RQ_All_trainable
-from unet import UNet_VAE_RQ_All, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch
+from unet import UNet_VAE, UNet_VAE_old
+from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
 
-dir_checkpoint = Path('checkpoints/')
+dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
 #use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
 use_cuda = True
 
@@ -391,68 +391,14 @@ if __name__ == '__main__':
     alpha = 0.0
     unet_option = "unet_vae_old"
 
-    if unet_option == 'unet':
-        net = UNet(in_channels=3, num_classes=3, bilinear=True)
-    #elif unet_option == 'unet_vae':
-        #net = UNet_VAE(3)
-    elif unet_option == 'simple_unet':
-        net = UNet_S(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1)
-    elif unet_option == 'unet_vae_1':
-        #net = UNet_VAE(4)
-        net = UNet_VAE(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1)
+    if unet_option == 'unet_vae_1':
+        net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3)
-    elif unet_option == 'unet_vae_softshrink_1skip':
-        net = UNet_VAE_Softshrink(3, 0.02)
-    elif unet_option == 'unet_vae_softshrink_allskip':
-        net = UNet_VAE_Softshrink_All(4, 0.02)
-    elif unet_option == 'unet_vae_RQ_1':
-        #net = UNet_VAE_RQ(3, 0.02)
-        net = UNet_VAE_RQ(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
-    elif unet_option == 'unet_vae_RQ_allskip':
-        #net = UNet_VAE_RQ_All(3,alpha)
-        net = UNet_VAE_RQ_All(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
+    elif unet_option == 'unet_vae_RQ_old':
+        net = UNet_VAE_RQ_old(3, alpha)
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        #net = UNet_VAE_RQ_All(3,alpha)
-        net = UNet_VAE_RQ_All_trainable(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
-    elif unet_option == 'unet_vae_RQ_test':
-        net = net = UNet_VAE_RQ_test(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
-    elif unet_option == 'unet_vae_soft_trainable':
-        net = UNet_VAE_Softshrink_All_trainable(3)
+        net = UNet_VAE_RQ_old_trainable(3,alpha)
 
     ### check parameters
     #for name, param in net.named_parameters():

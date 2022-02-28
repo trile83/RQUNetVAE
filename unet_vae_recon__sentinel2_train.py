@@ -51,7 +51,6 @@ from osgeo import gdal, gdal_array
 
 # load image folder path and image dictionary
 class_name = "sentinel2_xiqi"
-#data_dir = "F:\\NAIP\\"
 data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
 
@@ -67,8 +66,8 @@ def load_image_paths(path, name, mode, images):
         for ms_typ in ms: # ms_typ is either 'sat' or 'map'
             ms_path = os.path.join(typ_path, ms_typ)
             ms_img_fls = os.listdir(ms_path) # list all file path
-            ms_img_fls = [fl for fl in ms_img_fls if fl.endswith(".tiff") or fl.endswith(".TIF")]
-            scene_ids = [fl.replace(".tiff", "").replace(".TIF", "") for fl in ms_img_fls]
+            ms_img_fls = [fl for fl in ms_img_fls if fl.endswith(".tiff") or fl.endswith(".tif")]
+            scene_ids = [fl.replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
             ms_img_fls = [os.path.join(ms_path, fl) for fl in ms_img_fls]           
             # Record each scene
             
@@ -371,7 +370,6 @@ def train_net(net,
     plt.legend(labels = ['reconstruction loss','kl loss','total loss'],loc='upper right')
     plt.show()
         
-
         #if use_cuda:
             #noise.data += sigma * torch.randn(noise.shape).cuda()
         #else:
@@ -390,11 +388,12 @@ if __name__ == '__main__':
     
     alpha = 0.0
     unet_option = "unet_vae_old"
+    segment = False
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3)
+        net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
     elif unet_option == 'unet_vae_RQ_allskip_trainable':

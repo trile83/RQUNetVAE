@@ -115,9 +115,6 @@ def data_generator(files, size=256, mode="train", batch_size=6):
         #X = np.array(X_lst).astype(np.float32)
         X = np.array(X_lst)
 
-        print('max X[0]: ', np.max(X[0]))
-        print('min X[0]: ', np.min(X[0]))
-
         X_noise = []
 
         # for image in X:
@@ -133,8 +130,11 @@ def data_generator(files, size=256, mode="train", batch_size=6):
 
         # X_noise = np.array(X_noise)
 
-        #for i in range(len(X)):
-            #X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+        for i in range(len(X)):
+            X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+
+        print('max X[0]: ', np.max(X[0]))
+        print('min X[0]: ', np.min(X[0]))
 
         yield X, X
 
@@ -288,9 +288,6 @@ def train_net(net,
                     print("kl loss: ", kl_loss)
                     loss_items['kl_loss'].append(kl_loss.detach().cpu())
 
-                    #loss = criterion(masked_output.float(), true_masks.float()) 
-                            #+ dice_loss(F.softmax(masked_output, dim=1).float(),true_masks.float(),multiclass=True) 
-
                     #recon_loss = torch.sum((masked_output - true_masks)**2)
                     recon_loss = criterion(masked_output, true_masks)
                     loss_items['recon_loss'].append(recon_loss.detach().cpu())
@@ -421,7 +418,7 @@ if __name__ == '__main__':
 
     try:
         train_net(net=net,
-                  epochs=10,
+                  epochs=20,
                   batch_size=1,
                   learning_rate=1e-4,
                   device=device,

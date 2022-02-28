@@ -88,7 +88,7 @@ def jpg_to_tensor(filepath=image_path):
     # noisy = pil + 0*gauss
 
     row,col,ch= pil.shape
-    sigma = 0.1
+    sigma = 0.005
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
 

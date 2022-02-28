@@ -87,8 +87,7 @@ def data_generator(files, size=256, mode="train", batch_size=6):
         
         X_fls = [files[mode]['sat'][scene_id] for scene_id in scene_ids]
         Y_fls = [files[mode]['map'][scene_id] for scene_id in scene_ids]        
-        
-        #print(Y_fls)
+
         # read in image to classify with gdal
         X_lst=[]
         for j in range(len(X_fls)):
@@ -130,8 +129,8 @@ def data_generator(files, size=256, mode="train", batch_size=6):
 
         # X_noise = np.array(X_noise)
 
-        for i in range(len(X)):
-            X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+        #for i in range(len(X)):
+            #X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
 
         print('max X[0]: ', np.max(X[0]))
         print('min X[0]: ', np.min(X[0]))

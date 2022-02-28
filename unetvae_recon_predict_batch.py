@@ -19,17 +19,16 @@ from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
 from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
+image_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
+mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
 
-image_path = 'test_img/number13458.TIF'
-#image_path = 'sentinel2_im/2016002_0.tif'
-
-mask_true_path = 'test_label/number13458.TIF'
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-im_type = image_path[:8]
+im_type = image_path[30:38]
+#print(im_type)
 segment=False
-alpha = 0.5
+alpha = 0.2
 unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
 image_option = "noisy"
 
@@ -76,15 +75,6 @@ def jpg_to_tensor(filepath=image_path):
     pil = np.array(img_data)
     if im_type != "sentinel":
         pil=pil/255
-
-    ## add gaussian noise
-    # row,col,ch= pil.shape
-    # mean = 0
-    # var = 0.01
-    # sigma = var**0.5
-    # gauss = np.random.normal(mean,sigma,(row,col,ch))
-    # gauss = gauss.reshape(row,col,ch)
-    # noisy = pil + 0*gauss
 
     row,col,ch= pil.shape
     sigma = 0.1
@@ -160,7 +150,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='checkpoints/checkpoint_unet_vae_old_epoch10_0.0_recon.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch10_0.0_recon.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')

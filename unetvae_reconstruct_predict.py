@@ -13,9 +13,9 @@ import torchvision
 from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 
-from unet import UNet, UNet_VAE, UNet_VAE_Softshrink, UNet_VAE_Softshrink_All, UNet_VAE_RQ, UNet_VAE_Softshrink_All_trainable, UNet_VAE_RQ_All, UNet_S
+from unet import UNet_VAE, UNet_VAE_Softshrink_All_trainable, UNet_S
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
-from unet.unet_vae_RQ_scheme1 import UNet_VAE_RQ_scheme1
+from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
 #ground_truth_path = 'number13985.TIF'
@@ -163,7 +163,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='checkpoints/checkpoint_unet_vae_old_epoch10_0.0_recon.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='./github_checkpoints/checkpoint_unet_vae_old_epoch10_0.0_recon.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -191,51 +191,16 @@ if __name__ == '__main__':
     #in_files = args.input
     #out_files = get_output_filenames(args)
 
-    if unet_option == 'unet':
-        net = UNet(in_channels=3, num_classes=4, bilinear=True)
-    elif unet_option == 'unet_vae_1':
-        #net = UNet_VAE(3)
-        net = UNet_VAE(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1)
+    if unet_option == 'unet_vae_1':
+        net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3)
-    elif unet_option == 'unet_vae_softshrink_1skip':
-        net = UNet_VAE_Softshrink(3, 0.02)
-    elif unet_option == 'unet_vae_softshrink_allskip':
-        net = UNet_VAE_Softshrink_All(3, 0.02)
-    elif unet_option == 'unet_vae_RQ_1':
-        #net = UNet_VAE_RQ(3, 0.02)
-        net = UNet_VAE_RQ(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
+    
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
-    elif unet_option == 'unet_vae_RQ_allskip':
-        #net = UNet_VAE_RQ_All(3,alpha)
-        net = UNet_VAE_RQ_All(in_channels=3,
-             out_channels=64,
-             num_class=3,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
+    
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
         net = UNet_VAE_RQ_old_trainable(3,alpha)
-        # net = UNet_VAE_RQ_All_trainable(in_channels=3,
-        #      out_channels=64,
-        #      num_class=3,
-        #      kernel_size=3,
-        #      padding=1,
-        #      stride=1,
-        #      alpha = alpha)
 
     elif unet_option == 'unet_vae_RQ_torch':
         #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)

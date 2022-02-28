@@ -30,15 +30,9 @@ from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
 
-dir_checkpoint = Path('./github_checkpoints/')
+dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
 #use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
 use_cuda = True
-#input image. the architectures have been designed for 512x512 colour images
-#ground_truth_path = 'bunny_512.jpg'
-ground_truth_path = 'test_img/number5605.TIF'
-#ground_truth_path = 'test_img/*.TIF'
-#proportion of pixels to black out.
-prop = 0.5
 #standard deviation of added noise after each training set
 sigma = 1./30
 #number of tracondaining iterations

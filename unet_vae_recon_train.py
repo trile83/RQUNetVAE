@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from collections import OrderedDict
 from torch.nn import init
-from unet.unet_parts import *
 from pathlib import Path
 from skimage import exposure
 import glob
@@ -31,7 +30,7 @@ from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
 
-dir_checkpoint = Path('checkpoints/')
+dir_checkpoint = Path('./github_checkpoints/')
 #use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
 use_cuda = True
 #input image. the architectures have been designed for 512x512 colour images

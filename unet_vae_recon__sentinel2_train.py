@@ -114,22 +114,23 @@ def data_generator(files, size=256, mode="train", batch_size=6):
 
         #X = np.array(X_lst).astype(np.float32)
         X = np.array(X_lst)
-        #X = X/255
+
+        print('max X[0]: ', np.max(X[0]))
 
         X_noise = []
 
-        for image in X:
-            ## add gaussian noise
-            row,col,ch= image.shape
-            mean = 0
-            var = 0.1
-            sigma = var**0.5
-            gauss = np.random.normal(mean,sigma,(row,col,ch))
-            gauss = gauss.reshape(row,col,ch)
-            noisy = image + gauss
-            X_noise.append(noisy)
+        # for image in X:
+        #     ## add gaussian noise
+        #     row,col,ch= image.shape
+        #     mean = 0
+        #     var = 0.1
+        #     sigma = var**0.5
+        #     gauss = np.random.normal(mean,sigma,(row,col,ch))
+        #     gauss = gauss.reshape(row,col,ch)
+        #     noisy = image + gauss
+        #     X_noise.append(noisy)
 
-        X_noise = np.array(X_noise)
+        # X_noise = np.array(X_noise)
 
         #for i in range(len(X)):
             #X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
@@ -185,11 +186,11 @@ def train_net(net,
     train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=130)
     images, labels = next(train_data_gen)
 
-    train_images = images[:50]
-    train_labels = labels[:50]
+    train_images = images[:70]
+    train_labels = labels[:70]
 
-    val_images = images[100:102]
-    val_labels = labels[100:102]
+    val_images = images[70:72]
+    val_labels = labels[70:72]
 
     # 2. Split into train / validation partitions
     n_val = len(val_images)

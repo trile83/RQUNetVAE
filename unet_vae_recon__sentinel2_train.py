@@ -116,6 +116,7 @@ def data_generator(files, size=256, mode="train", batch_size=6):
         X = np.array(X_lst)
 
         print('max X[0]: ', np.max(X[0]))
+        print('min X[0]: ', np.min(X[0]))
 
         X_noise = []
 

@@ -19,18 +19,19 @@ from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
 from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
-image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
-#image_path = 'sentinel2_im/2016002_0.tif'
+#image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
+#mask_true_path = '/home/geoint/tri/github_files/test_label/number13458.TIF'
+image_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
+mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
 
-mask_true_path = '/home/geoint/tri/github_files/test_label/number13458.TIF'
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 im_type = image_path[:8]
 segment=False
-alpha = 0.5
+alpha = 0.0
 unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
-image_option = "noisy"
+image_option = "clean"
 
 ##################################
 def rescale(image):
@@ -108,7 +109,7 @@ def tensor_to_jpg(tensor):
     #pil = tensor_to_pil(tensor)
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
-    pil = rescale_truncate(pil)
+    #pil = rescale_truncate(pil)
     return pil
 
 #predict image

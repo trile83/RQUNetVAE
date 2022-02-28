@@ -183,7 +183,7 @@ def train_net(net,
 
     #print(images[class_name]['train'])
 
-    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=130)
+    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=75)
     images, labels = next(train_data_gen)
 
     train_images = images[:70]

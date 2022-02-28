@@ -109,7 +109,7 @@ def tensor_to_jpg(tensor):
     #pil = tensor_to_pil(tensor)
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
-    #pil = rescale_truncate(pil)
+    pil = rescale_truncate(pil)
     return pil
 
 #predict image

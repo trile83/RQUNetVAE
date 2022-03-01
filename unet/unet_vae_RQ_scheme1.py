@@ -716,10 +716,10 @@ class UNet_VAE_RQ_scheme1(nn.Module):
         ## smoothing operations
         for i in range(len(s_dict)):
 
-            print("level: ", i)
+            #print("level: ", i)
             f = s_dict[i]
             tensor_size = f.size(2)
-            print("tensor size: ", tensor_size)
+            #print("tensor size: ", tensor_size)
 
             if i not in self.beta_D_I_dict.keys():
                 s_smooth_dict[i] = s_dict[i]

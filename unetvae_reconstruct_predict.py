@@ -78,17 +78,8 @@ def jpg_to_tensor(filepath=image_path):
     if im_type != "sentinel":
         pil=pil/255
 
-    ## add gaussian noise
-    # row,col,ch= pil.shape
-    # mean = 0
-    # var = 0.01
-    # sigma = var**0.5
-    # gauss = np.random.normal(mean,sigma,(row,col,ch))
-    # gauss = gauss.reshape(row,col,ch)
-    # noisy = pil + 0*gauss
-
     row,col,ch= pil.shape
-    sigma = 0.002
+    sigma = 0.002 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
 

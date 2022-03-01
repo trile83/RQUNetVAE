@@ -16,28 +16,25 @@ import matplotlib.pyplot as plt
 from skimage import exposure
 import cv2
 
-from unet import UNet_VAE, UNet_VAE_old
-from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
+from unet import UNet_VAE
+from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
+from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
+from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2
 
-#ground_truth_path = 'number13985.TIF'
-#ground_truth_path = 'test_img/number3731.TIF'
-#ground_truth_path = 'test_img/number32843.TIF'
-#ground_truth_path = 'test_img/number10301.TIF'
+image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
+mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-image_path = 'test_img/number13458.TIF'
-#image_path = 'sentinel2_im/2016002_0.tif'
-mask_true_path = 'test_label/number13458.TIF'
-
-im_type = image_path[:8]
-alpha = 1
-unet_option = 'unet_jaxony' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_jaxony'
-image_option = "noisy" # noisy or clean
-
-#######################
-#use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+im_type = image_path[17:25]
+#print(im_type)
+segment=False
+alpha = 0
+unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+image_option = "clean" # "clean" or "noisy"
+
 
 def rescale(image):
     map_img =  np.zeros((256,256,3))
@@ -68,6 +65,8 @@ def jpg_to_tensor(filepath=image_path):
     pil = np.array(img_data)
     if im_type != "sentinel":
         pil=pil/255
+
+    pil = (pil - np.min(pil)) / (np.max(pil) - np.min(pil))
 
     ## add gaussian noise
     # row,col,ch= pil.shape
@@ -101,6 +100,7 @@ def tensor_to_jpg(tensor):
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
     pil = rescale(pil)
+    
     return pil
 
 #predict image
@@ -134,7 +134,8 @@ def predict_img(net,
             output = output.squeeze()
             #output = output
         else:
-            output = output[0][0]
+            #output = output[0][0]
+            output = output[0].squeeze()
 
         print("output squeeze shape: ", output.shape)
 
@@ -183,7 +184,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_2_epoch20_0.5_batchnorm_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch10_0.5_batchnorm_segment.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -218,18 +219,25 @@ if __name__ == '__main__':
     #in_files = args.input
     #out_files = get_output_filenames(args)
 
-    #alpha = 1
-    unet_option = "unet_vae_RQ_torch"
-    segment=True
-
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(4)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(4, segment)
+        net = UNet_VAE_old(4)
+    
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(4, alpha)
+    
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
         net = UNet_VAE_RQ_old_trainable(4,alpha)
+
+    elif unet_option == 'unet_vae_RQ_torch':
+        #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
+        net = UNet_VAE_RQ_new_torch(4, segment, alpha)
+
+    elif unet_option == 'unet_vae_RQ_scheme3':
+        net = UNet_VAE_RQ_scheme3(4, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_scheme1':
+        net = UNet_VAE_RQ_scheme1(4, segment, alpha)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #logging.info(f'Loading model {args.model}')

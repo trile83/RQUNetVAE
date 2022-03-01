@@ -178,9 +178,30 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             if img_data.shape == (256,256,3):
                 X_lst.append(img_data)
 
+        # label set
+        Y_lst=[]
+        for j in range(len(Y_fls)):
+            naip_fn = Y_fls[j]
+            #print(naip_fn)
+            driverTiff = gdal.GetDriverByName('GTiff')
+            naip_ds = gdal.Open(naip_fn, 1)
+            nbands = naip_ds.RasterCount
+            # create an empty array, each column of the empty array will hold one band of data from the image
+            # loop through each band in the image nad add to the data array
+            data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
+            for i in range(1, nbands+1):
+                band = naip_ds.GetRasterBand(i).ReadAsArray()
+                data[:, i-1] = band.flatten()
+
+            img_data = np.zeros((naip_ds.RasterYSize, naip_ds.RasterXSize, naip_ds.RasterCount),
+                           gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
+            for b in range(img_data.shape[2]):
+                img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
+
 
         #X = np.array(X_lst).astype(np.float32)
         X = np.array(X_lst)
+        Y = np.array(Y_lst)
         if im_type != "sentinel":
             X = X/255
             for i in range(len(X)):
@@ -197,11 +218,11 @@ def data_generator(files, size=256, mode="train", batch_size=6):
 
             X_noise = np.array(X_noise)
 
-            yield X_noise, X
+            yield X_noise, Y
 
         else:
 
-            yield X, X
+            yield X, Y
 
 class satDataset(Dataset):
     'Characterizes a dataset for PyTorch'
@@ -223,12 +244,12 @@ class satDataset(Dataset):
         
         #X = Image.fromarray(self.data[index].astype(np.uint8))
         X = self.transforms(X)
-        Y = self.transforms(Y)
+        Y = torch.LongTensor(Y)
         #Y = label
         return {
             #'image': torch.as_tensor(X.copy()).float(),
             'image': X,
-            'mask': X
+            'mask': Y
             #'mask': torch.as_tensor(X.copy()).float()
         }
 

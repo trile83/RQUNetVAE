@@ -25,8 +25,8 @@ from torch.utils.data import Dataset, TensorDataset
 from torch import optim
 from tqdm import tqdm
 
-from unet import UNet, UNet_VAE, UNet_VAE_Softshrink, UNet_VAE_Softshrink_All, UNet_VAE_RQ, UNet_VAE_Softshrink_All_trainable, UNet_test, UNet_S, UNet_VAE_old
-from unet import UNet_VAE_RQ_All
+from unet import UNet_VAE, UNet_VAE_old
+from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
@@ -465,47 +465,15 @@ if __name__ == '__main__':
     unet_option = "unet_vae_old"
     segment = True ## which means adding batchnorm layers, better for segmentation
 
-    if unet_option == 'unet':
-        net = UNet(in_channels=3, num_classes=3, bilinear=True)
-    elif unet_option == 'unet_jaxony':
-        net = UNet_test(3)
-    elif unet_option == 'simple_unet':
-        net = UNet_S(in_channels=3,
-             out_channels=64,
-             num_class=4,
-             kernel_size=3,
-             padding=1,
-             stride=1)
-    elif unet_option == 'unet_vae_1':
-        #net = UNet_VAE(4)
-        net = UNet_VAE(in_channels=3,
-             out_channels=64,
-             num_class=4,
-             kernel_size=3,
-             padding=1,
-             stride=1)
+    if unet_option == 'unet_vae_1':
+        net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3, segment)
-    # elif unet_option == 'unet_vae_RQ_1':
-    #     #net = UNet_VAE_RQ(4, 0.02)
-    #     net = UNet_VAE_RQ(in_channels=3,
-    #          out_channels=64,
-    #          num_class=4,
-    #          kernel_size=3,
-    #          padding=1,
-    #          stride=1,
-    #          alpha = alpha)
-    elif unet_option == 'unet_vae_RQ_allskip':
-        #net = UNet_VAE_RQ_All(4,alpha)
-        net = UNet_VAE_RQ_All(in_channels=3,
-             out_channels=64,
-             num_class=4,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
-    elif unet_option == 'unet_vae_soft_trainable':
-        net = UNet_VAE_Softshrink_All_trainable(4)
+    elif unet_option == 'unet_vae_RQ_old':
+        net = UNet_VAE_RQ_old(3, alpha)
+    elif unet_option == 'unet_vae_RQ_allskip_trainable':
+        net = UNet_VAE_RQ_old_trainable(3,alpha)
+
 
     #bind the network to the gpu if cuda is enabled
     if use_cuda:

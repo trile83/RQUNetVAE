@@ -21,14 +21,12 @@ from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
 from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
-image_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
-mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
+# image_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
+# mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-im_type = image_path[30:38]
-#print(im_type)
 segment=False
 alpha = 0.2
 unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
@@ -53,42 +51,6 @@ def rescale_truncate(image):
         p2, p98 = np.percentile(image[:,:,band], (2, 98))
         map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
     return map_img
-
-#accept a file path to a jpg, return a torch tensor
-def jpg_to_tensor(filepath=image_path):
-
-    naip_fn = filepath
-    driverTiff = gdal.GetDriverByName('GTiff')
-    naip_ds = gdal.Open(naip_fn, 1)
-    nbands = naip_ds.RasterCount
-    # create an empty array, each column of the empty array will hold one band of data from the image
-    # loop through each band in the image nad add to the data array
-    data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
-    for i in range(1, nbands+1):
-        band = naip_ds.GetRasterBand(i).ReadAsArray()
-        data[:, i-1] = band.flatten()
-
-    img_data = np.zeros((naip_ds.RasterYSize, naip_ds.RasterXSize, naip_ds.RasterCount),
-                    gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
-    for b in range(img_data.shape[2]):
-        img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
-
-    pil = np.array(img_data)
-    if im_type != "sentinel":
-        pil=pil/255
-
-    row,col,ch= pil.shape
-    sigma = 0.1
-    noisy = pil + sigma*np.random.randn(row,col,ch)
-
-
-    #pil_to_tensor = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
-    transform_tensor = transforms.ToTensor()
-    if use_cuda:
-        noisy_tensor = transform_tensor(noisy).cuda()
-        tensor = transform_tensor(pil).cuda()
-
-    return tensor.view([1]+list(tensor.shape)), noisy_tensor.view([1]+list(noisy_tensor.shape))
 
 #accept a torch tensor, convert it to a jpg at a certain path
 def tensor_to_jpg(tensor):
@@ -115,6 +77,10 @@ from osgeo import gdal, gdal_array
 class_name = "sentinel2_xiqi" ## or va059
 data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
+
+
+im_type = class_name[:8]
+#print(im_type)
 
 # Create training data 
 def load_obj(name):
@@ -236,7 +202,6 @@ class satDataset(Dataset):
 
 #predict image
 def predict_img(net,
-                filepath,
                 device,
                 scale_factor=1,
                 out_threshold=0.5):
@@ -375,11 +340,9 @@ if __name__ == '__main__':
     logging.info('Model loaded!')
 
     #for i, filename in enumerate(in_files):
-    logging.info(f'\nPredicting image {image_path} ...')
-    #img = Image.open(filename)
+    #logging.info(f'\nPredicting image {image_path} ...')
 
     preds, imgs = predict_img(net=net,
-                        filepath=image_path,
                         scale_factor=1,
                         out_threshold=0.5,
                         device=device)
@@ -406,7 +369,3 @@ if __name__ == '__main__':
         img = tensor_to_jpg(imgs[i])
 
         plot_img_and_mask_recon(img, pred)
-
-    if args.viz:
-        logging.info(f'Visualizing results for image {image_path}, close to continue...')
-        #plot_img_and_mask(img, mask)

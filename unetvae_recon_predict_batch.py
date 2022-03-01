@@ -190,7 +190,7 @@ def data_generator(files, size=256, mode="train", batch_size=6):
 
         if image_option == 'noisy':
             row,col,ch= X[0].shape
-            sigma = 0.002
+            sigma = 0.01
             for img in X:
                 noisy = img + sigma*np.random.randn(row,col,ch)
                 X_noise.append(noisy)

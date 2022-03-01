@@ -25,17 +25,16 @@ from torch.utils.data import Dataset, TensorDataset
 from torch import optim
 from tqdm import tqdm
 
-from unet import UNet, UNet_VAE, UNet_VAE_Softshrink, UNet_VAE_Softshrink_All, UNet_VAE_RQ, UNet_VAE_Softshrink_All_trainable, UNet_test, UNet_S, UNet_VAE_old
-from unet import UNet_VAE_RQ_All
+from unet import UNet_VAE, UNet_VAE_old
+from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
 
 
-dir_checkpoint = Path('checkpoints/')
+dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
 #use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
 use_cuda = True
-
 
 ##################################
 def rescale(image):
@@ -77,18 +76,24 @@ def load_image_paths(path, name, mode, images):
             ms_path = os.path.join(typ_path, ms_typ)
             ms_img_fls = os.listdir(ms_path) # list all file path
             ms_img_fls = [fl for fl in ms_img_fls if fl.endswith(".tiff") or fl.endswith(".tif")]
-            scene_ids = [fl.replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
+            
+            if ms_typ == 'map':
+                scene_ids = [fl[5:].replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
+            else:
+                scene_ids = [fl.replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
+
             ms_img_fls = [os.path.join(ms_path, fl) for fl in ms_img_fls]           
             # Record each scene
             
             for fl, scene_id in zip(ms_img_fls, scene_ids):
                 if ms_typ == 'map':
+                    
                     images[name][ttv_typ][ms_typ][scene_id] = fl
 
                 elif ms_typ == "sat":
                     images[name][ttv_typ][ms_typ][scene_id] = fl
                  
-def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
+def data_generator(files, size=256, mode="train", batch_size=6):
     while True:
         all_scenes = list(files[mode]['sat'].keys())
         
@@ -141,31 +146,27 @@ def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
             for b in range(img_data.shape[2]):
                 img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
-
             img_data = img_data-1
 
-            img_data[img_data == 3] == 2
+            # img_data[img_data == 3] == 2
 
-            if np.max(img_data)==255:
-                img_data[img_data == 255] = 2
+            # if np.max(img_data)==255:
+            #     img_data[img_data == 255] = 2
 
-            if np.max(img_data)>2:
-                img_data[img_data > 2] = 2
-            #print(np.max(img_data))
-                
-            #print(len(Y_lst))
-            #if img_data.shape == (256,256,1):
+            # if np.max(img_data)>2:
+            #     img_data[img_data > 2] = 2
+
             Y_lst.append(img_data)
          
-        X = np.array(X_lst).astype(np.float32)
-        X = X/255
+        X = np.array(X_lst)
         Y = np.array(Y_lst)
 
         print("Max value of Y", np.max(Y))
         print("Min value of Y", np.min(Y))
 
-        #for i in range(len(X)):
-            #X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+        # normalized input images
+        for i in range(len(X)):
+            X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
 
         yield X, Y
 
@@ -187,18 +188,12 @@ class satDataset(Dataset):
         # Select sample
         X = self.data[index]
         Y = self.targets[index]
-        
-        #X = Image.fromarray(self.data[index].astype(np.uint8))
-        #X = self.transforms(X)
-        #Y = label
 
         X = self.transforms(X)
         Y = torch.LongTensor(Y)
         return {
-            #'image': torch.as_tensor(X.copy()).float(),
             'image': X,
             'mask': Y
-            #'mask': torch.as_tensor(Y.copy()).long()
         }
 
 def train_net(net,
@@ -214,18 +209,15 @@ def train_net(net,
     ### get data
     images = {}
     load_image_paths(data_dir, class_name, 'train', images)
-    im_dict = load_obj("images_dict")
 
-    #print(images[class_name]['train'])
-
-    train_data_gen = data_generator(images[class_name], im_dict, size=256, mode="train", batch_size=130)
+    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=53)
     images, labels = next(train_data_gen)
 
-    train_images = images[:100]
-    train_labels = labels[:100]
+    train_images = images[:45]
+    train_labels = labels[:45]
 
-    val_images = images[100:110]
-    val_labels = labels[100:110]
+    val_images = images[45:50]
+    val_labels = labels[45:50]
 
     # 2. Split into train / validation partitions
     n_val = len(val_images)
@@ -298,7 +290,6 @@ def train_net(net,
                 print("true mask shape: ", true_masks.shape)
 
                 images = torch.reshape(images, (batch_size,3,256,256))
-                #true_masks = torch.reshape(true_masks, (batch_size,4,256,256))
                 true_masks = torch.reshape(true_masks, (batch_size,256,256))
 
                 #print("image shape: ", images.shape)
@@ -317,30 +308,6 @@ def train_net(net,
 
                         loss = criterion(masked_output, true_masks) 
                             #+ dice_loss(F.softmax(masked_output, dim=1).float(),F.one_hot(true_masks, net.num_classes).permute(0, 3, 1, 2).float(),multiclass=True)
-                        loss_items['crossentropy_loss'].append(loss.detach().cpu())
-                        print("crossentropy loss: ", loss)
-                    
-                    elif unet_option == 'simple_unet':
-
-                        masked_output = output
-
-                        #criterion = nn.NLLLoss()
-                        #optimizer = optim.Adam(net.parameters(), lr=1e-3)
-                        #true_masks = F.one_hot(true_masks, net.num_classes).permute(0, 3, 1, 2)
-
-                        print("Max values of predicted image: ",np.max(masked_output.detach().cpu().numpy()))
-                        print("Min values of predicted image: ",np.min(masked_output.detach().cpu().numpy()))
-
-                        true_masks = true_masks.reshape(batch_size,256,256) 
-
-                        #dice_true_masks = F.one_hot(true_masks, net.num_classes)
-                        #dice_true_masks = dice_true_masks.reshape(batch_size,256,256)
-
-                        #print(dice_true_masks.shape)
-
-                        loss = criterion(output, true_masks) 
-                            #+ dice_loss(F.softmax(masked_output, dim=1).float(),F.one_hot(true_masks, net.num_classes).permute(0, 3, 1, 2).float(),multiclass=True)
-
                         loss_items['crossentropy_loss'].append(loss.detach().cpu())
                         print("crossentropy loss: ", loss)
 
@@ -428,7 +395,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_2_epoch{number}_{alpha}_batchnorm_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_{alpha}_batchnorm_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -463,49 +430,16 @@ if __name__ == '__main__':
     
     alpha = 0.5
     unet_option = "unet_vae_old"
-    segment = True ## which means adding batchnorm layers, better for segmentation
+    segment = False ## which means adding batchnorm layers, better for segmentation
 
-    if unet_option == 'unet':
-        net = UNet(in_channels=3, num_classes=3, bilinear=True)
-    elif unet_option == 'unet_jaxony':
-        net = UNet_test(3)
-    elif unet_option == 'simple_unet':
-        net = UNet_S(in_channels=3,
-             out_channels=64,
-             num_class=4,
-             kernel_size=3,
-             padding=1,
-             stride=1)
-    elif unet_option == 'unet_vae_1':
-        #net = UNet_VAE(4)
-        net = UNet_VAE(in_channels=3,
-             out_channels=64,
-             num_class=4,
-             kernel_size=3,
-             padding=1,
-             stride=1)
+    if unet_option == 'unet_vae_1':
+        net = UNet_VAE(4)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3, segment)
-    # elif unet_option == 'unet_vae_RQ_1':
-    #     #net = UNet_VAE_RQ(4, 0.02)
-    #     net = UNet_VAE_RQ(in_channels=3,
-    #          out_channels=64,
-    #          num_class=4,
-    #          kernel_size=3,
-    #          padding=1,
-    #          stride=1,
-    #          alpha = alpha)
-    elif unet_option == 'unet_vae_RQ_allskip':
-        #net = UNet_VAE_RQ_All(4,alpha)
-        net = UNet_VAE_RQ_All(in_channels=3,
-             out_channels=64,
-             num_class=4,
-             kernel_size=3,
-             padding=1,
-             stride=1,
-             alpha = alpha)
-    elif unet_option == 'unet_vae_soft_trainable':
-        net = UNet_VAE_Softshrink_All_trainable(4)
+        net = UNet_VAE_old(4, segment)
+    elif unet_option == 'unet_vae_RQ_old':
+        net = UNet_VAE_RQ_old(4, alpha)
+    elif unet_option == 'unet_vae_RQ_allskip_trainable':
+        net = UNet_VAE_RQ_old_trainable(4,alpha)
 
     #bind the network to the gpu if cuda is enabled
     if use_cuda:
@@ -524,7 +458,7 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=20,
+                  epochs=10,
                   batch_size=5,
                   learning_rate=1e-4,
                   device=device,

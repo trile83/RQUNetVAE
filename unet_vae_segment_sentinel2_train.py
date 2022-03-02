@@ -430,7 +430,7 @@ if __name__ == '__main__':
     
     alpha = 0.5
     unet_option = "unet_vae_old"
-    segment = False ## which means adding batchnorm layers, better for segmentation
+    segment = True ## which means adding batchnorm layers, better for segmentation
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(4)
@@ -458,7 +458,7 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=10,
+                  epochs=30,
                   batch_size=5,
                   learning_rate=1e-4,
                   device=device,

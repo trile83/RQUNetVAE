@@ -78,7 +78,9 @@ def load_image_paths(path, name, mode, images):
             ms_img_fls = [fl for fl in ms_img_fls if fl.endswith(".tiff") or fl.endswith(".tif")]
             
             if ms_typ == 'map':
-                scene_ids = [fl[5:].replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
+                scene_ids_map = [fl.replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
+                scene_ids = [fl[5:] for fl in scene_ids_map]
+                #print(scene_ids)
             else:
                 scene_ids = [fl.replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
 
@@ -87,7 +89,6 @@ def load_image_paths(path, name, mode, images):
             
             for fl, scene_id in zip(ms_img_fls, scene_ids):
                 if ms_typ == 'map':
-                    
                     images[name][ttv_typ][ms_typ][scene_id] = fl
 
                 elif ms_typ == "sat":
@@ -129,6 +130,7 @@ def data_generator(files, size=256, mode="train", batch_size=6):
         # label set
         Y_lst=[]
         for j in range(len(Y_fls)):
+            print(Y_fls[j])
             naip_fn = Y_fls[j]
             #print(naip_fn)
             driverTiff = gdal.GetDriverByName('GTiff')
@@ -146,15 +148,20 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             for b in range(img_data.shape[2]):
                 img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
-            img_data = img_data-1
+            #img_data = img_data-1
 
-            # img_data[img_data == 3] == 2
+            img_data[img_data == 1] = 3
+            
 
-            # if np.max(img_data)==255:
-            #     img_data[img_data == 255] = 2
+            if np.max(img_data)==255:
+                img_data[img_data == 255] = 1
 
             # if np.max(img_data)>2:
             #     img_data[img_data > 2] = 2
+
+            img_data = img_data-2
+
+            print(np.unique(img_data)) 
 
             Y_lst.append(img_data)
          
@@ -167,6 +174,9 @@ def data_generator(files, size=256, mode="train", batch_size=6):
         # normalized input images
         for i in range(len(X)):
             X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+
+        print("Max value of X", np.max(X))
+        print("Min value of X", np.min(X))
 
         yield X, Y
 
@@ -428,18 +438,18 @@ if __name__ == '__main__':
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
     
-    alpha = 0.5
+    alpha = 0.0
     unet_option = "unet_vae_old"
-    segment = True ## which means adding batchnorm layers, better for segmentation
+    segment = False ## which means adding batchnorm layers, better for segmentation
 
     if unet_option == 'unet_vae_1':
-        net = UNet_VAE(4)
+        net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(4, segment)
+        net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':
-        net = UNet_VAE_RQ_old(4, alpha)
+        net = UNet_VAE_RQ_old(3, alpha)
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(4,alpha)
+        net = UNet_VAE_RQ_old_trainable(3,alpha)
 
     #bind the network to the gpu if cuda is enabled
     if use_cuda:
@@ -458,7 +468,7 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=30,
+                  epochs=10,
                   batch_size=5,
                   learning_rate=1e-4,
                   device=device,

@@ -1,2 +1,2 @@
-# UNet_VariationalEncoder_RieszQuincunxShrinkage_Pytorch
+# UNet VariationalEncoder RieszQuincunxShrinkage using Pytorch
  

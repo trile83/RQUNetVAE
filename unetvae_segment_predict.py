@@ -20,7 +20,7 @@ from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
 from unet import UNet_VAE_RQ_scheme1
-from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2
+from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 
 image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
 mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
@@ -29,8 +29,8 @@ use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 im_type = image_path[17:25]
-#print(im_type)
-segment=False
+print(im_type)
+segment=True
 alpha = 0
 unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
 image_option = "clean" # "clean" or "noisy"
@@ -184,7 +184,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.5_batchnorm_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch10_0.5_batchnorm_segment.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -307,7 +307,10 @@ if __name__ == '__main__':
     error = mask - img_data
     #print("errors: ", error)
     print(np.unique(mask))
-    plot_img_and_mask_3(img, label, mask)
+    if im_type == 'sentinel':
+        plot_img_and_mask_4(img, label, mask)
+    else:
+        plot_img_and_mask_3(img, label, mask)
     #plot_img_and_mask_2(img, mask)
 
     if not args.viz:

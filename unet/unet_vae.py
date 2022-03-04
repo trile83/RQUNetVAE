@@ -204,7 +204,7 @@ class UNet_VAE_old(nn.Module):
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False
             if self.segment and i > (depth-3):
-                dropout = True
+                dropout = False
             else:
                 dropout = False
 

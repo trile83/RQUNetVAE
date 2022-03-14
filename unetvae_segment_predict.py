@@ -22,8 +22,11 @@ from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
 from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 
-image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
-mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
+#image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
+#mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
+
+image_path = '/home/geoint/tri/va059/train/sat/number13458.TIF'
+mask_true_path = '/home/geoint/tri/va059/train/map/number13458.TIF'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -184,7 +187,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch30_0.0_batchnorm_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-14_epoch1_0.5_va059_segment.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -288,7 +291,7 @@ if __name__ == '__main__':
     naip_ds = gdal.Open(naip_fn, 1)
     nbands = naip_ds.RasterCount
     # create an empty array, each column of the empty array will hold one band of data from the image
-    # loop through each band in the image nad add to the data array
+    # loop through each band in the image and add to the data array
     data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
     for i in range(1, nbands+1):
         band = naip_ds.GetRasterBand(i).ReadAsArray()

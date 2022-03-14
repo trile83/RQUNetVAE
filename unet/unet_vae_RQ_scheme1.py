@@ -654,8 +654,6 @@ class UNet_VAE_RQ_scheme1(nn.Module):
 
         #print(self.beta_D_I_dict.keys())
 
-
-
         #############################################
 
         # the dimension before flatten is 1024 x 16 x 16 = 262144

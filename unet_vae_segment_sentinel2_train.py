@@ -152,7 +152,6 @@ def data_generator(files, size=256, mode="train", batch_size=6):
 
             img_data[img_data == 1] = 3
             
-
             if np.max(img_data)==255:
                 img_data[img_data == 255] = 3
 

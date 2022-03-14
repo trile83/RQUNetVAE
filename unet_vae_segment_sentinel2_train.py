@@ -154,14 +154,23 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             
 
             if np.max(img_data)==255:
-                img_data[img_data == 255] = 1
+                img_data[img_data == 255] = 3
 
             # if np.max(img_data)>2:
             #     img_data[img_data > 2] = 2
 
             img_data = img_data-2
 
-            print(np.unique(img_data)) 
+            print(np.unique(img_data))
+            print(img_data.shape)
+
+            #im = img_data.reshape(256,256)
+
+            #plt.plot(img_data)
+            #plt.imshow()
+            #plt.show()
+
+            break
 
             Y_lst.append(img_data)
          
@@ -468,9 +477,9 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=10,
+                  epochs=30,
                   batch_size=5,
-                  learning_rate=1e-4,
+                  learning_rate=1e-5,
                   device=device,
                   img_scale=1,
                   val_percent=10/100,

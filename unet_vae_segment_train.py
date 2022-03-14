@@ -88,7 +88,7 @@ def load_image_paths(path, name, mode, images):
                 elif ms_typ == "sat":
                     images[name][ttv_typ][ms_typ][scene_id] = fl
                  
-def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
+def data_generator(files, size=256, mode="train", batch_size=6):
     while True:
         all_scenes = list(files[mode]['sat'].keys())
         
@@ -214,11 +214,11 @@ def train_net(net,
     ### get data
     images = {}
     load_image_paths(data_dir, class_name, 'train', images)
-    im_dict = load_obj("images_dict")
+    #im_dict = load_obj("images_dict")
 
     #print(images[class_name]['train'])
 
-    train_data_gen = data_generator(images[class_name], im_dict, size=256, mode="train", batch_size=130)
+    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=130)
     images, labels = next(train_data_gen)
 
     train_images = images[:100]
@@ -428,7 +428,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_2_epoch{number}_{alpha}_batchnorm_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_3-14_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -492,8 +492,8 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=20,
-                  batch_size=5,
+                  epochs=30,
+                  batch_size=1,
                   learning_rate=1e-4,
                   device=device,
                   img_scale=1,

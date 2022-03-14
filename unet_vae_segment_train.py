@@ -32,10 +32,9 @@ from utils.dice_score import dice_loss
 from evaluate import evaluate
 
 
-dir_checkpoint = Path('checkpoints/')
+dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
 #use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
 use_cuda = True
-
 
 ##################################
 def rescale(image):
@@ -157,15 +156,15 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             #if img_data.shape == (256,256,1):
             Y_lst.append(img_data)
          
-        X = np.array(X_lst).astype(np.float32)
+        X = np.array(X_lst)
         X = X/255
         Y = np.array(Y_lst)
 
         print("Max value of Y", np.max(Y))
         print("Min value of Y", np.min(Y))
 
-        #for i in range(len(X)):
-            #X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+        # for i in range(len(X)):
+        #     X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
 
         yield X, Y
 
@@ -461,7 +460,7 @@ if __name__ == '__main__':
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
     
-    alpha = 0.5
+    alpha = 0.0
     unet_option = "unet_vae_old"
     segment = True ## which means adding batchnorm layers, better for segmentation
 
@@ -493,7 +492,7 @@ if __name__ == '__main__':
     try:
         train_net(net=net,
                   epochs=30,
-                  batch_size=1,
+                  batch_size=5,
                   learning_rate=1e-4,
                   device=device,
                   img_scale=1,

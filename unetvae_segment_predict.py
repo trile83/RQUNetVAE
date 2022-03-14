@@ -66,7 +66,7 @@ def jpg_to_tensor(filepath=image_path):
     if im_type != "sentinel":
         pil=pil/255
 
-    pil = (pil - np.min(pil)) / (np.max(pil) - np.min(pil))
+    #pil = (pil - np.min(pil)) / (np.max(pil) - np.min(pil))
 
     ## add gaussian noise
     # row,col,ch= pil.shape
@@ -184,7 +184,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch10_0.5_batchnorm_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch30_0.0_batchnorm_segment.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -220,24 +220,24 @@ if __name__ == '__main__':
     #out_files = get_output_filenames(args)
 
     if unet_option == 'unet_vae_1':
-        net = UNet_VAE(4)
+        net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(4)
+        net = UNet_VAE_old(3)
     
     elif unet_option == 'unet_vae_RQ_old':
-        net = UNet_VAE_RQ_old(4, alpha)
+        net = UNet_VAE_RQ_old(3, alpha)
     
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(4,alpha)
+        net = UNet_VAE_RQ_old_trainable(3,alpha)
 
     elif unet_option == 'unet_vae_RQ_torch':
         #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
-        net = UNet_VAE_RQ_new_torch(4, segment, alpha)
+        net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
     elif unet_option == 'unet_vae_RQ_scheme3':
-        net = UNet_VAE_RQ_scheme3(4, segment, alpha)
+        net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
-        net = UNet_VAE_RQ_scheme1(4, segment, alpha)
+        net = UNet_VAE_RQ_scheme1(3, segment, alpha)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #logging.info(f'Loading model {args.model}')
@@ -300,6 +300,7 @@ if __name__ == '__main__':
         img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
     label = np.array(img_data)
+    print(label.shape)
     label = label.reshape((256,256))
 
     #mask = (np.argmax(mask, axis=2)).astype(np.uint8)

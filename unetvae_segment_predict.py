@@ -18,15 +18,15 @@ import cv2
 
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
-from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
+from unet import UNet_VAE_RQ_new_torch # UNet_VAE_RQ_scheme3
 from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 
 #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
 #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-image_path = '/home/geoint/tri/va059/train/sat/number13458.TIF'
-mask_true_path = '/home/geoint/tri/va059/train/map/number13458.TIF'
+image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -66,9 +66,8 @@ def jpg_to_tensor(filepath=image_path):
         img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
     pil = np.array(img_data)
-    if im_type != "sentinel":
-        pil=pil/255
-
+    #if im_type != "sentinel":
+    pil=pil/255
     #pil = (pil - np.min(pil)) / (np.max(pil) - np.min(pil))
 
     ## add gaussian noise
@@ -102,7 +101,7 @@ def tensor_to_jpg(tensor):
     #pil = tensor_to_pil(tensor)
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
-    pil = rescale(pil)
+    #pil = rescale(pil)
     
     return pil
 
@@ -187,7 +186,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-14_epoch1_0.5_va059_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-14_epoch1_0.0_va059_segment.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -237,8 +236,8 @@ if __name__ == '__main__':
         #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
         net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
-    elif unet_option == 'unet_vae_RQ_scheme3':
-        net = UNet_VAE_RQ_scheme3(3, segment, alpha)
+    #elif unet_option == 'unet_vae_RQ_scheme3':
+        #net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
 

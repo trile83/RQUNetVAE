@@ -35,13 +35,13 @@ def plot_img_and_mask_3(image, mask_true, mask_pred):
     #mask_pred[mask_pred==1]==0
 
      # lets plot some information here
-    fig, axes = plt.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
-    axes[0,0].title.set_text("Image")
-    axes[0,0].imshow(image)
-    axes[1,0].title.set_text("Ground Truth")
-    axes[1,0].imshow(mask_true, cmap=colormap)
-    axes[0,1].title.set_text("Prediction")
-    axes[0,1].imshow(mask_pred, cmap=colormap)
+    fig, axes = plt.subplots(nrows=1, ncols=3, sharex=True, sharey=True)
+    axes[0].title.set_text("Image")
+    axes[0].imshow(image)
+    axes[1].title.set_text("Ground Truth")
+    axes[1].imshow(mask_true, cmap=colormap)
+    axes[2].title.set_text("Prediction")
+    axes[2].imshow(mask_pred, cmap=colormap)
     fig.tight_layout()
     # create a patch (proxy artist) for every color 
     patches = [mpatches.Patch(color=colors[i], label="{l}".format(l=classes[i])) for i in range(len(classes))]

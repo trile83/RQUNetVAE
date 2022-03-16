@@ -31,7 +31,7 @@ im_type = image_path[30:38]
 #print(im_type)
 segment=False
 alpha = 0.2
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
 image_option = "noisy" # "clean" or "noisy"
 
 ##################################

@@ -869,8 +869,6 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         Width = x.size(3)
         N = 3
         test_size = x.size(0)
-         
-       
         # =====================================================================
        
         # Step 3 - Riesz-Quincunx truncation for skip-connecting signals (alpha):
@@ -894,8 +892,8 @@ class UNet_VAE_RQ_scheme3(nn.Module):
             psi_D_in = self.psi_D_in_dict[i]
 
             # Forward Riesz-Quincunx wavelet:
-            for k in range(f_re.size(0)):
-                for l in range(f_re.size(1)):
+            for k in range(f.size(0)):
+                for l in range(f.size(1)):
                     c_I, d_in = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
                     c_I, d_in = c_I.cuda(), d_in.cuda()
                     c_I_ori[i][k,l,:,:] = c_I            
@@ -982,7 +980,12 @@ class UNet_VAE_RQ_scheme3(nn.Module):
                             # case 2 - fixed threshold:
                             thres = 1/beta
                             activation_method = "SoftShrink"
-                            w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(d_in - 1/beta*lambda_i[i][k,l,:,:,:,:], thres, activation_method)
+                            b = 1/beta*lambda_i[i][k,l,:,:,:,:]
+                            print("d_in shape: ", d_in.shape)
+                            print("b shape: d", b.shape)
+                            a = d_in - b
+                            #w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(d_in - 1/beta*lambda_i[i][k,l,:,:,:,:], thres, activation_method)
+                            w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(a, thres, activation_method)
 
                             # Inverse wavelet:
                             f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, w_i[i][k,l,:,:,:,:] + 1/beta*lambda_i[i][k,l,:,:,:,:], beta_I, psi_in)        

@@ -21,8 +21,8 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 
 #image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
 #mask_true_path = '/home/geoint/tri/github_files/test_label/number13458.TIF'
-image_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
-mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
+image_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
+mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -30,9 +30,9 @@ use_cuda = True
 im_type = image_path[30:38]
 #print(im_type)
 segment=False
-alpha = 0.2
+alpha = 0.0
 unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
-image_option = "noisy" # "clean" or "noisy"
+image_option = "clean" # "clean" or "noisy"
 
 ##################################
 def rescale(image):
@@ -218,6 +218,8 @@ if __name__ == '__main__':
                         scale_factor=1,
                         out_threshold=0.5,
                         device=device)
+
+    print("mask shape: ", mask.shape)
 
 
     #out_files = 'out/predict_va_softshrink_all_0.02.tif'

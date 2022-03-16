@@ -18,7 +18,7 @@ import cv2
 
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
-from unet import UNet_VAE_RQ_new_torch # UNet_VAE_RQ_scheme3
+from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
 from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 
@@ -35,7 +35,7 @@ im_type = image_path[17:25]
 print(im_type)
 segment=True
 alpha = 0
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
 image_option = "clean" # "clean" or "noisy"
 
 
@@ -236,8 +236,8 @@ if __name__ == '__main__':
         #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
         net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
-    #elif unet_option == 'unet_vae_RQ_scheme3':
-        #net = UNet_VAE_RQ_scheme3(3, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_scheme3':
+        net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
 

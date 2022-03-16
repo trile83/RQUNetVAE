@@ -548,8 +548,8 @@ class UpConv(nn.Module):
             from_down: tensor from the encoder pathway
             from_up: upconv'd tensor from the decoder pathway
         """
-        print("from_up shape: ", from_up.shape)
-        print("from_down shape: ", from_down.shape)
+        #print("from_up shape: ", from_up.shape)
+        #print("from_down shape: ", from_down.shape)
         from_up = self.upconv(from_up)
         if self.segment:
             from_up = self.batchnorm(from_up) # better for segmentation
@@ -669,7 +669,7 @@ class UNet_VAE_RQ_scheme3(nn.Module):
 
         # add keys into 4 dictionary with tensor size, so that is easier to call out these values for shrinkage operation
 
-        print("len size_lst: ", len(size_lst))
+        # print("len size_lst: ", len(size_lst))
 
         for index in range(len(size_lst)):
             tensor_size = size_lst[index]
@@ -750,101 +750,6 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         return self.bottleneck(self.encoder(x))[0]
 
     def forward(self, x):
-        #h = self.encoder(x)
-        encoder_outs = []
-         
-        # Step 1: encoder pathway, save outputs for merging
-        for i, module in enumerate(self.down_convs):
-            x, before_pool = module(x)
-            encoder_outs.append(before_pool)
-
-        # ================ Added Duy code
-        # Step 2 - Riesz-Quincunx truncation (alpha): =========================  
-        # self.scale = 3
-        # self.height = 256
-        # self.width = 256
-        # self.gamma = 1.2
-        # self.alpha = alpha
-
-        # Riesz Quincunx wavelet:
-        # c_I_ori = {}
-        # for i in range(len(encoder_outs)):
-        #     c_I_ori[i] = torch.zeros(encoder_outs[i].shape)
-
-        encoder_outs_rq = [] # new list for shrinkage tensors
-        for i in range(len(encoder_outs)):
-            before_pool = encoder_outs[i]
-
-            height = before_pool.size(2)
-            width = before_pool.size(3)
-
-            beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(height, width, self.scale, self.gamma)
-            beta_I, beta_D_I, psi_i, psi_D_i = beta_I.cuda(), beta_D_I.cuda(), psi_i.cuda(), psi_D_i.cuda()
-
-            # Riesz Quincunx wavelet:
-            N = 3
-            psi_in, psi_D_in = RieszQuincunxWaveletFuncs(N, psi_i, psi_D_i)
-            psi_in, psi_D_in = psi_in.cuda(), psi_D_in.cuda()
-
-            # Step 2.
-            #f = before_pool.cpu().detach().numpy()
-            f = before_pool
-
-            f_re = torch.zeros(f.shape)
-
-            # Case 2: Riesz Quincunx wavelet:
-            # Forward wavelet:
-            for k in range(f_re.size(0)):
-                for l in range(f_re.size(1)):
-                    c_I, d_in = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
-                    c_I, d_in = c_I.cuda(), d_in.cuda()
-                    #c_I_ori[i][k,l,:,:] = c_I  
-                    # Shrinkage:
-                    alpha = self.alpha
-                    activation_method = "SoftShrink"
-                    d_in = RieszWaveletTruncation(d_in, alpha, activation_method)
-
-                    # Inverse wavelet:
-                    f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, d_in, beta_I, psi_in)
-
-            f_re = f_re.cuda()        
-           
-            encoder_outs_rq.append(f_re)
-        # =====================================================================
-
-        #for i in range(len(encoder_outs)):
-            #encoder_outs[i] = self.s_shrink(encoder_outs[i])[0]
-
-        x_encoded = self.flatten(x)
-
-        # calculate z, mu, and logvar
-        z, mu, logvar = self.bottleneck(x_encoded)
-        z = self.act(self.fc3(z))
-        z = torch.reshape(z, x.shape)
-
-        #print(self.down_convs)
-        #print(self.up_convs)
-
-        # decoder pathway
-        for i, module in enumerate(self.up_convs):
-            #before_pool = encoder_outs[-(i+2)]
-            before_pool = encoder_outs_rq[-(i+2)]
-            if i == 0:
-                x = module(before_pool, z)
-            else:
-                x = module(before_pool, x)
-
-        x = self.conv_final(x)
-
-        x_recon = F.relu(x)
-
-        #kl_loss = -0.5 * (1 + logvar - torch.square(mu) - torch.exp(logvar))
-        kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-
-        return x, mu, logvar, x_recon, kl_loss
-
-
-    def forward(self, x):
        
         # I. Extract original information:
            
@@ -854,9 +759,8 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         for i, module in enumerate(self.down_convs):
             x_ori, s_ori = module(x_ori)
             s_i_ori[i] = s_ori
-       
-       
-         # Step 2 - variational term (latent variable) for downsampled signals:
+
+        # Step 2 - variational term (latent variable) for downsampled signals:
         x_encoded_ori = self.flatten(x_ori)
 
         # calculate z, mu, and logvar
@@ -870,7 +774,7 @@ class UNet_VAE_RQ_scheme3(nn.Module):
             c_I_ori[i] = torch.zeros(s_i_ori[i].shape)
 
 
-        ## smoothing operations
+        ## smoothing operations for original calculation
         for i in range(len(s_i_ori)):
 
             #print("level: ", i)
@@ -889,10 +793,10 @@ class UNet_VAE_RQ_scheme3(nn.Module):
                 for l in range(f.size(1)):
                     c_I, d_in = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
                     c_I, d_in = c_I.cuda(), d_in.cuda()
-                    c_I_ori[i][k,l,:,:] = c_I            
+                    c_I_ori[i][k,l,:,:] = c_I   ## get c_I values and save in dictionaries         
            
         # II. ISTA:
-        beta = 601   # 1  
+        beta = 1   # 1, 601  
         Iter = 30   # 20, 10
         #
         u = x
@@ -906,6 +810,7 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         # =====================================================================
 
         # Duy1: modify dimension here!
+        # calculate lambda_i, w_i, and d_in_tau dictionary
         lambda_i = {}
         for i in range(0, Scales_quincunx):
             lambda_i[i] = torch.zeros((test_size, s_i_ori[i].shape[1], Scales_quincunx+1, N+1, int(Height/2**i), int(Width/2**i)))
@@ -921,138 +826,137 @@ class UNet_VAE_RQ_scheme3(nn.Module):
             d_in_tau[i] = torch.zeros((test_size, s_i_ori[i].shape[1], Scales_quincunx+1, N+1, int(Height/2**i), int(Width/2**i)))
 
         # check: s_i_ori[i].shape[0] = number of subbands
-
         # d_in = torch.zeros((Scales+1, N+1, Height, Width))
 
-        # Iteration =======================================
-        for tau in range(0, Iter):    
-            print(tau)
+        # Iteration ======================================= Scheme 3
+        #for tau in range(0, Iter):    
+        #print("tau: ", tau)
 
-            # Step 1 - Encoder:
-            s_i = {}  
-            for i, module in enumerate(self.down_convs):
-                u, s = module(u)
-                s_i[i] = s        
+        # Step 1 - Encoder:
+        s_i = {}
+        for i, module in enumerate(self.down_convs):
+            u, s = module(u)
+            s_i[i] = s
 
-            # Step 2 - variational term (latent variable) for downsampled signals:
-            u_encoded = self.flatten(u)
+        # Step 2 - variational term (latent variable) for downsampled signals:
+        u_encoded = self.flatten(u)
 
-            # calculate z, mu, and logvar
-            z, mu, logvar = self.bottleneck(u_encoded)
-            z = self.act(self.fc3(z))
-            z = torch.reshape(z, u.shape)
-         
-            # Step 3 - Riesz-Quincunx truncation for skip-connecting signals (alpha):
-            # Duy2: intial for s_i_shrink to be zeros here?
-            s_i_shrink = {} # new list for shrinkage tensors
+        # calculate z, mu, and logvar
+        z, mu, logvar = self.bottleneck(u_encoded)
+        z = self.act(self.fc3(z))
+        z = torch.reshape(z, u.shape)
+        
+        # Step 3 - Riesz-Quincunx truncation for skip-connecting signals (alpha):
+        # Duy2: intial for s_i_shrink to be zeros here?
+        s_i_shrink = {} # new list for shrinkage tensors
 
-            ## smoothing operations
-            for i in range(len(s_i)):
+        ## smoothing operations
+        for i in range(len(s_i)):
 
-                #print("level: ", i)
-                f = s_i[i]
-                tensor_size = f.size(2)
-                #print("tensor size: ", tensor_size)
+            f = s_i[i]
+            # tensor_size = f.size(2)
+            if i not in self.beta_D_I_dict.keys():
+                s_i_shrink[i] = s_i[i]
+            else:
+                # Extract Riesz-Quincunx bases:
+                beta_I = self.beta_I_dict[i]
+                beta_D_I = self.beta_D_I_dict[i]
+                psi_in = self.psi_in_dict[i]
+                psi_D_in = self.psi_D_in_dict[i]
 
-                if i not in self.beta_D_I_dict.keys():
-                    s_i_shrink[i] = s_i[i]
-                else:
-                    # Extract Riesz-Quincunx bases:
-                    beta_I = self.beta_I_dict[i]
-                    beta_D_I = self.beta_D_I_dict[i]
-                    psi_in = self.psi_in_dict[i]
-                    psi_D_in = self.psi_D_in_dict[i]
+                # transfer to gpu
+                beta_I, beta_D_I, psi_in, psi_D_in = beta_I.cuda(), beta_D_I.cuda(), psi_in.cuda(), psi_D_in.cuda()
 
-                    beta_I, beta_D_I, psi_in, psi_D_in = beta_I.cuda(), beta_D_I.cuda(), psi_in.cuda(), psi_D_in.cuda()
+                f_re = torch.zeros(f.shape)
 
-                    f_re = torch.zeros(f.shape)
+                #print("f_re shape: ", f_re.shape)
+                # Forward Riesz-Quincunx wavelet:
+                for k in range(f_re.size(0)):
+                    for l in range(f_re.size(1)):
+                        c_I, d_in = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
+                        c_I, d_in = c_I.cuda(), d_in.cuda()
+                        
+                        # get c_I value
+                        c_I = c_I_ori[i][k,l,:,:]
+                        c_I = c_I.cuda()
+                        
+                        # # Shrinkage:
+                        # alpha = self.alpha
+                        # activation_method = "SoftShrink"
+                        # d_in = RieszWaveletTruncation(d_in, alpha, activation_method)
 
-                    print("f_re shape: ", f_re.shape)
-                    # Forward Riesz-Quincunx wavelet:
-                    for k in range(f_re.size(0)):
-                        for l in range(f_re.size(1)):
-                            c_I, d_in = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
-                            c_I, d_in = c_I.cuda(), d_in.cuda()
-                           
-                            #
-                            c_I = c_I_ori[i][k,l,:,:]
-                            c_I = c_I.cuda()
-                           
-                            # # Shrinkage:
-                            # alpha = self.alpha
-                            # activation_method = "SoftShrink"
-                            # d_in = RieszWaveletTruncation(d_in, alpha, activation_method)
+                        # case 2 - fixed threshold:
+                        thres = 1/beta
+                        activation_method = "SoftShrink"
+                        w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(d_in - 1/beta*lambda_i[i][k,l,:,:,:,:].cuda(), thres, activation_method)
 
-                            # case 2 - fixed threshold:
-                            thres = 1/beta
-                            activation_method = "SoftShrink"
-                            w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(d_in - 1/beta*lambda_i[i][k,l,:,:,:,:].cuda(), thres, activation_method)
+                        # Inverse wavelet:
+                        f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, (w_i[i][k,l,:,:,:,:] + 1/beta*lambda_i[i][k,l,:,:,:,:]).cuda(), beta_I, psi_in)        
+                            
 
-                            # Inverse wavelet:
-                            f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, (w_i[i][k,l,:,:,:,:] + 1/beta*lambda_i[i][k,l,:,:,:,:]).cuda(), beta_I, psi_in)        
-                               
+                f_re = f_re.cuda()        
+        
+                s_i_shrink[i] = f_re
+                    
+        # Step 4 - decoder:
+        for i, module in enumerate(self.up_convs):
 
-                    f_re = f_re.cuda()        
-           
-                    s_i_shrink[i] = f_re
-                       
-            # Step 4 - decoder:
-            for i, module in enumerate(self.up_convs):
- 
-                s = s_i_shrink[5-2-i]
-                #print("s shape: ", s.shape)
-                #print("z shape: ", z.shape)
-                if i == 0: ## if i==0 then concatenate the variation layer (z) instead of original downconv tensor (x), then after the loop, x becomes the upconv tensor
-                    u = module(s, z_ori)
-                else:
-                    u = module(s, u)
-                #
-                u = self.conv_final(u)
-                u = F.relu(u)            
+            s = s_i_shrink[5-2-i]
+            #print("s shape: ", s.shape)
+            #print("z shape: ", z_ori.shape)
+            if i == 0: ## if i==0 then concatenate the variation layer (z) instead of original downconv tensor (x), then after the loop, x becomes the upconv tensor
+                u = module(s, z_ori)
+            else:
+                u = module(s, u)
+            #
+        u = self.conv_final(u) 
+        u = F.relu(u)            
 
-           
-            # compute d_i_new:
-            # Step 1 - Encoder:
-            s_i_tau = {}  
-            for i, module in enumerate(self.down_convs):
-                u, s = module(u)
-                s_i_tau[i] = s        
+        # compute d_i_new:
+        # Step 1 - Encoder:
+        s_i_tau = {}
+        u_new = u
+        for i, module in enumerate(self.down_convs):
+            u_new, s = module(u_new)
+            s_i_tau[i] = s        
 
-            # Step 3 - Riesz-Quincunx wavelet:
-            for i in range(len(s_i_tau)):
+        # Step 3 - Riesz-Quincunx wavelet:
+        for i in range(len(s_i_tau)):
 
-                print("level: ", i)
-                f = s_i_tau[i]
-                tensor_size = f.size(2)
-                print("tensor size: ", tensor_size)
+            #print("level: ", i)
+            f = s_i_tau[i]
+            tensor_size = f.size(2)
+            print("s_I_tau element shape: ", f.shape)
+            #print("tensor size: ", tensor_size)
 
-                if i not in self.beta_D_I_dict.keys():
-                    s_i_shrink[i] = s_i_ori[i]
-                else:
-                    # Extract Riesz-Quincunx bases:
-                    beta_I = self.beta_I_dict[i]
-                    beta_D_I = self.beta_D_I_dict[i]
-                    psi_in = self.psi_in_dict[i]
-                    psi_D_in = self.psi_D_in_dict[i]
+            if i not in self.beta_D_I_dict.keys():
+                s_i_shrink[i] = s_i_ori[i]
+            else:
+                # Extract Riesz-Quincunx bases:
+                beta_I = self.beta_I_dict[i]
+                beta_D_I = self.beta_D_I_dict[i]
+                psi_in = self.psi_in_dict[i]
+                psi_D_in = self.psi_D_in_dict[i]
 
-                    # Forward Riesz-Quincunx wavelet:
-                    for k in range(f_re.size(0)):
-                        for l in range(f_re.size(1)):
-                            c_I_temp, d_in_temp = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
-                            c_I_temp, d_in_temp = c_I_temp.cuda(), d_in_temp.cuda()
+                #print("beta_D_I shape: ", beta_D_I.shape)
+                #print("psi_D_in shape: ", psi_D_in.shape)
 
-                            #
-                            d_in_tau[i][k,l,:,:,:,:] = d_in_temp
+                # Forward Riesz-Quincunx wavelet:
+                for k in range(f.size(0)):
+                    for l in range(f.size(1)):
+                        c_I_temp, d_in_temp = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
+                        c_I_temp, d_in_temp = c_I_temp.cuda(), d_in_temp.cuda()
 
-            # update Langrange multiplier:              
-            for i in range(0, Scales_quincunx):    
-                lambda_i[i] = lambda_i[i] + beta * (w_i[i] - d_in_tau[i])
+                        #
+                        d_in_tau[i][k,l,:,:,:,:] = d_in_temp
 
-         
+        # update Langrange multiplier:              
+        for i in range(0, Scales_quincunx):    
+            lambda_i[i] = lambda_i[i] + beta * (w_i[i] - d_in_tau[i])
+
         # Output:
         x_recon = u
                  
-
         # Step 5 - KL Loss func:
         #kl_loss = -0.5 * (1 + logvar - torch.square(mu) - torch.exp(logvar))
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())

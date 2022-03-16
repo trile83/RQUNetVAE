@@ -77,8 +77,8 @@ def BsplineQuincunxScalingWaveletFuncs(Height, Width, Scales, gamma):
     # Width = 256  # 128
     # gamma = 5 # 1.2
     #   
-    psi_i = torch.zeros((Height, Width, Scales+1), dtype=torch.complex64)    
-    psi_D_i = torch.zeros((Height, Width, Scales+1), dtype=torch.complex64)    
+    psi_i = torch.zeros((Scales+1, Height, Width), dtype=torch.complex64)    
+    psi_D_i = torch.zeros((Scales+1, Height, Width), dtype=torch.complex64)    
     
     #
     #for i in range(0, Scales+1):
@@ -100,8 +100,8 @@ def BsplineQuincunxScalingWaveletFuncs(Height, Width, Scales, gamma):
             omega2 = omega2_temp 
             
         # Primal/Dual wavelet funcs:
-        psi_i[:,:,i] = torch.tensor(1/m.sqrt(2)) * Highpass_primal( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma) * IPBspline( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma)
-        psi_D_i[:,:,i] = torch.tensor(1/m.sqrt(2)) * Highpass_dual( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma) * ScalingFunc_dual( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma)
+        psi_i[i,:,:] = torch.tensor(1/m.sqrt(2)) * Highpass_primal( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma) * IPBspline( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma)
+        psi_D_i[i,:,:] = torch.tensor(1/m.sqrt(2)) * Highpass_dual( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma) * ScalingFunc_dual( 0.5*(omega1+omega2), 0.5*(omega1-omega2), gamma)
     
     # Fourier coordinate:
     omega2, omega1 = torch.meshgrid(torch.linspace(-pi, pi, Width), torch.linspace(-pi, pi, Height))        
@@ -129,9 +129,9 @@ def BsplineQuincunxScalingWaveletFuncs(Height, Width, Scales, gamma):
     # check Identity:
     waveletFunc = torch.zeros((Height, Width), dtype=torch.complex64)
     for i in range(1, Scales+1):
-        waveletFunc = waveletFunc + np.conj(psi_D_i[:,:,i])*psi_i[:,:,i]
+        waveletFunc = waveletFunc + np.conj(psi_D_i[i,:,:])*psi_i[i,:,:]
         
-    psi_i[:,:,0] = ( Matrix_one - scalingFunc - waveletFunc ) / ( torch.conj(psi_D_i[:,:,0])  ) 
+    psi_i[0,:,:] = ( Matrix_one - scalingFunc - waveletFunc ) / ( torch.conj(psi_D_i[0,:,:])  ) 
 
     return beta_I, beta_D_I, psi_i, psi_D_i
 
@@ -191,33 +191,31 @@ def RieszQuincunxWaveletFuncs(N, psi_i, psi_D_i):
     # N = 3
     # beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(Height, Width, Scales, gamma)
     
-    Height, Width, Scales1 = psi_i.shape
+    Scales1, Height, Width = psi_i.shape
     Scales = Scales1 - 1
     
     #
     omega2, omega1 = torch.meshgrid(torch.linspace(-pi, pi, Width), torch.linspace(-pi, pi, Height)) 
     
-    #print("omega1 shape: ", omega1.shape)
-    
     # Spectrum of Riesz opt:
-    Rn_omega = torch.zeros((Height, Width, N+1), dtype=torch.complex64)
+    Rn_omega = torch.zeros((N+1, Height, Width), dtype=torch.complex64)
     
     for n in range(0, N+1):
         coeff = (-j)**N * m.sqrt( m.factorial(N) / m.factorial(n) / m.factorial(N - n) )
         #coeff = torch.from_numpy(coeff)
-        Rn_omega[:,:,n] = coeff * omega1**n * omega2**(N-n) / ( omega1**2 + omega2**2 )**(N/2)
+        Rn_omega[n,:,:] = coeff * omega1**n * omega2**(N-n) / ( omega1**2 + omega2**2 )**(N/2)
     
     #convert to cuda
     Rn_omega = Rn_omega.cuda()
     # N-th order Riesz Quincunx wavelet:
-    psi_in = torch.zeros((Height, Width, Scales+1, N+1), dtype=torch.complex64).cuda()
-    psi_D_in = torch.zeros((Height, Width, Scales+1, N+1), dtype=torch.complex64).cuda()
+    psi_in = torch.zeros((Scales+1, N+1, Height, Width), dtype=torch.complex64).cuda()
+    psi_D_in = torch.zeros((Scales+1, N+1, Height, Width), dtype=torch.complex64).cuda()
     
     #
     for i in range(0, Scales+1):
         for n in range(0, N+1):
-            psi_D_in[:,:,i,n] = Rn_omega[:,:,n] * psi_D_i[:,:,i]
-            psi_in[:,:,i,n] = Rn_omega[:,:,n] * psi_i[:,:,i]    
+            psi_D_in[i,n,:,:] = Rn_omega[n,:,:] * psi_D_i[i,:,:]
+            psi_in[i,n,:,:] = Rn_omega[n,:,:] * psi_i[i,:,:]    
     
     return psi_in, psi_D_in
 
@@ -228,28 +226,30 @@ def RieszQuincunxWaveletTransform_Forward(f, beta_D_I, psi_D_in):
     
     from torch.fft import fft2, ifft2, fftshift, ifftshift
     
-    Height, Width, Scales1, N1 = psi_D_in.shape
+    Scales1, N1, Height, Width = psi_D_in.shape
     Scales = Scales1 - 1
     N = N1 - 1
 
-    #print(psi_D_in.shape)
+    #print("psi_D_in shape: ",psi_D_in.shape)
     #print("beta_D_I shape: ",beta_D_I.shape)
 
     F = fftshift(fft2(f))
+
+    #print("tensor shape: ", F.shape)
     
     # Scaling coefficients:
     c_I = torch.real( ifft2( ifftshift( F * torch.conj(beta_D_I) ) ) )
     #print("c_I shape: ", c_I.shape)
         
     # Wavelet coefficients:
-    d_in = torch.zeros((Height, Width, Scales+1, N+1))
+    d_in = torch.zeros((Scales+1, N+1, Height, Width))
     #d_in = np.zeros((Height, Width, 64, 1))
     #print("shape d_in: ", d_in.shape)
 
 
-    for i in range(0, N+1):
-        for n in range(0, Scales+1):
-            d_in[:,:,i,n] = torch.real( ifft2( ifftshift( F * torch.conj(psi_D_in[:,:,i,n]) ) ) )
+    for i in range(0, Scales+1):
+        for n in range(0, N+1):
+            d_in[i,n,:,:] = torch.real( ifft2( ifftshift( F * torch.conj(psi_D_in[i,n,:,:]) ) ) )
     
     return c_I, d_in
 
@@ -259,7 +259,7 @@ def RieszQuincunxWaveletTransform_Inverse(c_I, d_in, beta_I, psi_in):
     #from numpy.fft import fft2, ifft2, fftshift, ifftshift
     from torch.fft import fft2, ifft2, fftshift, ifftshift
     
-    Height, Width, Scales1, N1 = psi_in.shape
+    Scales1, N1, Height, Width = psi_in.shape
     Scales = Scales1 - 1
     N = N1 - 1
     
@@ -269,7 +269,7 @@ def RieszQuincunxWaveletTransform_Inverse(c_I, d_in, beta_I, psi_in):
 
     for i in range(0, Scales+1):
         for n in range(0, N+1):
-            F_re_wavelet = F_re_wavelet + fftshift(fft2(d_in[:,:,i,n])) * psi_in[:,:,i,n]
+            F_re_wavelet = F_re_wavelet + fftshift(fft2(d_in[i,n,:,:])) * psi_in[i,n,:,:]
             #F_re_wavelet = fftshift(fft2(d_in[:,:,i,n])) * psi_in[:,:,i,n]
 
     # using both scaling coefficient and wavelet coefficient
@@ -284,18 +284,17 @@ def RieszWaveletTruncation(d_in, alpha, activation_method):
     # alpha = 0.1   # 0.5 
     # activation_method = "SoftShrink"
 
-    Height, Width, Scales1, N1 = d_in.shape
+    Scales1, N1, Height, Width = d_in.shape
     Scales = Scales1 - 1
     N = N1 - 1    
-
 
     for i in range(0, Scales+1):
         for n in range(0, N+1):
             #thres = alpha*np.max(d_in[:,:,i,n])
-            thres = alpha*torch.max(d_in[:,:,i,n])
+            thres = alpha*torch.max(d_in[i,n,:,:])
 
             #d_in_shrink[:,:,i,n] = ActivationFuncs(activation_method, d_in[:,:,i,n], thres)
-            d_in[:,:,i,n] = ActivationFuncs(activation_method, d_in[:,:,i,n], thres)
+            d_in[i,n,:,:] = ActivationFuncs(activation_method, d_in[i,n,:,:], thres)
 
     return d_in
 
@@ -306,14 +305,14 @@ def RieszWaveletTruncation_FixThres(d_in, thres, activation_method):
     # alpha = 0.1   # 0.5 
     # activation_method = "SoftShrink"
 
-    Height, Width, Scales1, N1 = d_in.shape
+    Scales1, N1, Height, Width = d_in.shape
     Scales = Scales1 - 1
     N = N1 - 1    
 
     # truncation:
     for i in range(0, Scales+1):
         for n in range(0, N+1):
-            d_in[:,:,i,n] = ActivationFuncs(activation_method, d_in[:,:,i,n], thres)
+            d_in[i,n,:,:] = ActivationFuncs(activation_method, d_in[i,n,:,:], thres)
     
     return d_in
 
@@ -615,7 +614,7 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         self.up_convs = []
 
         ##### parameters for RQ
-        self.scale = 3
+        self.scale = 5
         self.gamma = 1.2
 
         # create the encoder pathway and add to a list
@@ -669,6 +668,8 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         psi_D_in_dict = {}
 
         # add keys into 4 dictionary with tensor size, so that is easier to call out these values for shrinkage operation
+
+        print("len size_lst: ", len(size_lst))
 
         for index in range(len(size_lst)):
             tensor_size = size_lst[index]
@@ -863,14 +864,6 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         z_ori = self.act(self.fc3(z_ori))
         z_ori = torch.reshape(z_ori, x_ori.shape)      
        
-        # Parameter: ==========================================================
-        Scales_quincunx = len(s_i_ori)
-        Height = x.size(2)
-        Width = x.size(3)
-        N = 3
-        test_size = x.size(0)
-        # =====================================================================
-       
         # Step 3 - Riesz-Quincunx truncation for skip-connecting signals (alpha):
         c_I_ori = {}
         for i in range(0, len(s_i_ori)):
@@ -880,10 +873,10 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         ## smoothing operations
         for i in range(len(s_i_ori)):
 
-            print("level: ", i)
+            #print("level: ", i)
             f = s_i_ori[i]
             tensor_size = f.size(2)
-            print("tensor size: ", tensor_size)
+            #print("tensor size: ", tensor_size)
 
             # Extract Riesz-Quincunx bases:
             beta_I = self.beta_I_dict[i]
@@ -903,21 +896,29 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         Iter = 30   # 20, 10
         #
         u = x
-           
+
+        # Parameter: ==========================================================
+        Scales_quincunx = len(s_i_ori)
+        Height = x.size(2)
+        Width = x.size(3)
+        N = 3
+        test_size = x.size(0)
+        # =====================================================================
+
         # Duy1: modify dimension here!
         lambda_i = {}
         for i in range(0, Scales_quincunx):
-            lambda_i[i] = torch.zeros((test_size, Scales_quincunx+1, N+1, s_i_ori[i].shape[1], int(Height/2**i), int(Width/2**i)))
+            lambda_i[i] = torch.zeros((test_size, s_i_ori[i].shape[1], Scales_quincunx+1, N+1, int(Height/2**i), int(Width/2**i)))
    
         #
         w_i = {}
         for i in range(0, Scales_quincunx):
-            w_i[i] = torch.zeros((test_size, Scales_quincunx+1, N+1, s_i_ori[i].shape[1], int(Height/2**i), int(Width/2**i)))
+            w_i[i] = torch.zeros((test_size, s_i_ori[i].shape[1], Scales_quincunx+1, N+1, int(Height/2**i), int(Width/2**i)))
 
         #
         d_in_tau = {}
         for i in range(0, Scales_quincunx):
-            d_in_tau[i] = torch.zeros((test_size, Scales_quincunx+1, N+1, s_i_ori[i].shape[1], int(Height/2**i), int(Width/2**i)))
+            d_in_tau[i] = torch.zeros((test_size, s_i_ori[i].shape[1], Scales_quincunx+1, N+1, int(Height/2**i), int(Width/2**i)))
 
         # check: s_i_ori[i].shape[0] = number of subbands
 
@@ -948,10 +949,10 @@ class UNet_VAE_RQ_scheme3(nn.Module):
             ## smoothing operations
             for i in range(len(s_i)):
 
-                print("level: ", i)
+                #print("level: ", i)
                 f = s_i[i]
                 tensor_size = f.size(2)
-                print("tensor size: ", tensor_size)
+                #print("tensor size: ", tensor_size)
 
                 if i not in self.beta_D_I_dict.keys():
                     s_i_shrink[i] = s_i[i]
@@ -962,7 +963,11 @@ class UNet_VAE_RQ_scheme3(nn.Module):
                     psi_in = self.psi_in_dict[i]
                     psi_D_in = self.psi_D_in_dict[i]
 
+                    beta_I, beta_D_I, psi_in, psi_D_in = beta_I.cuda(), beta_D_I.cuda(), psi_in.cuda(), psi_D_in.cuda()
+
                     f_re = torch.zeros(f.shape)
+
+                    print("f_re shape: ", f_re.shape)
                     # Forward Riesz-Quincunx wavelet:
                     for k in range(f_re.size(0)):
                         for l in range(f_re.size(1)):
@@ -971,6 +976,7 @@ class UNet_VAE_RQ_scheme3(nn.Module):
                            
                             #
                             c_I = c_I_ori[i][k,l,:,:]
+                            c_I = c_I.cuda()
                            
                             # # Shrinkage:
                             # alpha = self.alpha
@@ -980,15 +986,10 @@ class UNet_VAE_RQ_scheme3(nn.Module):
                             # case 2 - fixed threshold:
                             thres = 1/beta
                             activation_method = "SoftShrink"
-                            b = 1/beta*lambda_i[i][k,l,:,:,:,:]
-                            print("d_in shape: ", d_in.shape)
-                            print("b shape: d", b.shape)
-                            a = d_in - b
-                            #w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(d_in - 1/beta*lambda_i[i][k,l,:,:,:,:], thres, activation_method)
-                            w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(a, thres, activation_method)
+                            w_i[i][k,l,:,:,:,:] = RieszWaveletTruncation_FixThres(d_in - 1/beta*lambda_i[i][k,l,:,:,:,:].cuda(), thres, activation_method)
 
                             # Inverse wavelet:
-                            f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, w_i[i][k,l,:,:,:,:] + 1/beta*lambda_i[i][k,l,:,:,:,:], beta_I, psi_in)        
+                            f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, (w_i[i][k,l,:,:,:,:] + 1/beta*lambda_i[i][k,l,:,:,:,:]).cuda(), beta_I, psi_in)        
                                
 
                     f_re = f_re.cuda()        

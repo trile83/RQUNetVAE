@@ -32,14 +32,6 @@ def upconv2x2(in_channels, out_channels, mode='transpose'):
             kernel_size=2,
             stride=2)
     else:
-        # out_channels is always going to be the same
-        # as in_channels
-        # if idx == 0:
-        #     return nn.Sequential(
-        #         nn.Upsample(mode='bilinear', scale_factor=2),
-        #         conv1x1(in_channels, out_channels)
-        #     )
-        # else:
         return nn.Sequential(
             nn.Upsample(mode='bilinear', scale_factor=2),
             conv1x1(in_channels, out_channels))
@@ -59,7 +51,6 @@ def conv_out(in_channels, out_channels, groups=1):
         kernel_size=1,
         groups=groups,
         stride=1)
-
 
 # Encoder Block for UNet
 class DownConv(nn.Module):
@@ -115,11 +106,9 @@ class UpConv(nn.Module):
         self.merge_mode = merge_mode
         self.up_mode = up_mode
         self.batchnorm = nn.BatchNorm2d(out_channels)
-        #self.unflatten = UnFlatten()
 
         self.upconv = upconv2x2(self.in_channels, self.out_channels,
             mode=self.up_mode)
-
 
         # skip connection from decoder to encoder
         if self.merge_mode == 'concat':
@@ -225,7 +214,6 @@ class UNet_VAE_old(nn.Module):
             self.up_convs.append(up_conv)
 
         self.conv_final = conv1x1(outs, self.num_classes)
-        #self.conv_final = conv_out(outs, self.num_classes)
 
         # add the list of modules to current module
         self.down_convs = nn.ModuleList(self.down_convs)
@@ -252,7 +240,6 @@ class UNet_VAE_old(nn.Module):
     def reparameterize(self, mu, logvar): # similar to sampling class in Keras code
         std = logvar.mul(0.5).exp_()
         std = std.cuda()
-        #eps = torch.randn(*mu.size())
         eps = torch.normal(mu, std)
         eps = eps.cuda()
         z = mu + std * eps
@@ -267,7 +254,6 @@ class UNet_VAE_old(nn.Module):
         return self.bottleneck(self.encoder(x))[0]
 
     def forward(self, x):
-        #h = self.encoder(x)
         encoder_outs = []
          
         # encoder pathway, save outputs for merging
@@ -275,18 +261,12 @@ class UNet_VAE_old(nn.Module):
             x, before_pool = module(x)
             encoder_outs.append(before_pool)
 
-        #print("x shape: ", x.shape)
-        #print(type(x))
-
         x_encoded = self.flatten(x)
 
         # calculate z_mean, z_log_var
         z, mu, logvar = self.bottleneck(x_encoded)
         z = self.act(self.fc3(z))
         z = torch.reshape(z, x.shape)
-            
-        #print(self.down_convs)
-        #print(self.up_convs)
 
         # decoder pathway
         for i, module in enumerate(self.up_convs):
@@ -297,11 +277,7 @@ class UNet_VAE_old(nn.Module):
                 x = module(before_pool, x)
 
         x = self.conv_final(x)
-
         x_recon = F.relu(x)
-
-        #kl_loss = -0.5 * (1 + logvar - torch.square(mu) - torch.exp(logvar))
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
         return x, mu, logvar, x_recon, kl_loss
-        #return x

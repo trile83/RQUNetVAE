@@ -427,7 +427,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_3-14_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_3-18_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -491,7 +491,7 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=30,
+                  epochs=10,
                   batch_size=5,
                   learning_rate=1e-4,
                   device=device,

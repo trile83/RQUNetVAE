@@ -80,8 +80,6 @@ def jpg_to_tensor(filepath=image_path):
     sigma = 0.002 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
-
-    #pil_to_tensor = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
     transform_tensor = transforms.ToTensor()
     if use_cuda:
         noisy_tensor = transform_tensor(noisy).cuda()
@@ -91,12 +89,9 @@ def jpg_to_tensor(filepath=image_path):
 
 #accept a torch tensor, convert it to a jpg at a certain path
 def tensor_to_jpg(tensor):
-    #tensor = tensor.view(tensor.shape[1:])
     tensor = tensor.squeeze(0)
     if use_cuda:
         tensor = tensor.cpu()
-    #tensor_to_pil = torchvision.transforms.Compose([torchvision.transforms.ToPILImage()])
-    #pil = tensor_to_pil(tensor)
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
     pil = rescale_truncate(pil)
@@ -127,8 +122,8 @@ def predict_img(net,
             err = output[5]
             output = output[3]
 
-        #print(output.shape)    
-        print("relative error: ", err)
+        #print(output.shape)  
+        #print("relative error: ", err)
 
     return output.cpu()
 

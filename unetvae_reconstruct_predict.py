@@ -26,9 +26,7 @@ mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 im_type = image_path[30:38]
-#print(im_type)
 segment=False
 alpha = 0.1
 unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
@@ -119,7 +117,7 @@ def predict_img(net,
         if unet_option == 'unet':
             output = output
         else:
-            err = output[5]
+            #err = output[5]
             output = output[3]
 
         #print(output.shape)  

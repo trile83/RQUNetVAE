@@ -10,7 +10,7 @@ To run the training file, users can run the the following command: <br>
 To run the predict file for one image, users can run the following command: <br>
 ```python unetvae_reconstruct_predict.py```
 
-To run the predict file for one image, users can run the following command: <br>
+To run the predict file for batch of images, users can run the following command: <br>
 ```python unetvae_recon_predict_batch.py```
 
 In the "unetvae_reconstruct_predict.py" file<br>

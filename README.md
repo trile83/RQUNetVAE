@@ -3,7 +3,7 @@
 The Unet code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment in the "test" branch.<br>
 
 The Unet code is using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>
-On the test branch:<br>
+## On the test branch:<br>
 To run the training file, users can run the the following command: <br>
 ```python unet_vae_recon_train.py```
 

@@ -26,41 +26,26 @@ from tqdm import tqdm
 
 from unet import UNet_VAE, UNet_VAE_old
 from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
-from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
-
-dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
-#use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
-use_cuda = True
-
-##################################
-def rescale(image):
-    map_img =  np.zeros((256,256,3))
-    for band in range(3):
-        p2, p98 = np.percentile(image[:,:,band], (2, 98))
-        map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
-    return map_img
-
-###########
-# get data
-## Load data
 import os
 from collections import defaultdict
 import pickle
 from osgeo import gdal, gdal_array
 
+dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
+#use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
+use_cuda = True
+
+###########
+# get data
+
 # load image folder path and image dictionary
 class_name = "va059"
-#data_dir = "F:\\NAIP\\"
 data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
 
 # Create training data 
-def load_obj(name):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
-    
 def load_image_paths(path, name, mode, images):
     images[name] = {mode: defaultdict(dict)}
     # test, train, valid
@@ -85,7 +70,7 @@ def load_image_paths(path, name, mode, images):
                 elif ms_typ == "sat":
                     images[name][ttv_typ][ms_typ][scene_id] = fl
                  
-def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
+def data_generator(files, size=256, mode="train", batch_size=6):
     while True:
         all_scenes = list(files[mode]['sat'].keys())
         
@@ -95,8 +80,6 @@ def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
         X_fls = [files[mode]['sat'][scene_id] for scene_id in scene_ids]
         Y_fls = [files[mode]['map'][scene_id] for scene_id in scene_ids]        
         
-        #print(Y_fls)
-        # read in image to classify with gdal
         X_lst=[]
         for j in range(len(X_fls)):
             naip_fn = X_fls[j]
@@ -118,8 +101,6 @@ def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
             if img_data.shape == (256,256,3):
                 X_lst.append(img_data)
 
-
-        #X = np.array(X_lst).astype(np.float32)
         X = np.array(X_lst)
         X = X/255
 
@@ -185,11 +166,10 @@ def train_net(net,
     ### get data
     images = {}
     load_image_paths(data_dir, class_name, 'train', images)
-    im_dict = load_obj("images_dict")
 
     #print(images[class_name]['train'])
 
-    train_data_gen = data_generator(images[class_name], im_dict, size=256, mode="train", batch_size=130)
+    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=130)
     images, labels = next(train_data_gen)
 
     train_images = images[:50]

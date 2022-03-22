@@ -31,24 +31,22 @@ im_type = image_path[30:38]
 #print(im_type)
 segment=False
 alpha = 0.1
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
 image_option = "noisy" # "clean" or "noisy"
 
 ##################################
-def rescale(image):
+def rescale(image): ## function to rescale image for visualization
     map_img =  np.zeros((256,256,3))
     for band in range(3):
         p2, p98 = np.percentile(image[:,:,band], (2, 98))
         map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
     return map_img
 
-def rescale_truncate(image):
-
+def rescale_truncate(image): ## function to rescale image for visualization
     if np.amin(image) < 0:
         image = np.where(image < 0,0,image)
     if np.amax(image) > 1:
         image = np.where(image > 1,1,image) 
-
     map_img =  np.zeros((256,256,3))
     for band in range(3):
         p2, p98 = np.percentile(image[:,:,band], (2, 98))
@@ -123,34 +121,13 @@ def predict_img(net,
     with torch.no_grad():
         output = net(img)
 
-        
-
         if unet_option == 'unet':
             output = output
         else:
             err = output[5]
             output = output[3]
 
-        print(output.shape)
-
-        # if  output.detach().cpu().numpy().all() == 0:
-        #     print("output is zero")
-        #     print(output.cpu())
-
-        #full_mask = output.cpu()
-        #full_mask = full_mask.reshape(256,256,3)
-        #print(full_mask.shape)
-
-        # tf = transforms.Compose([
-        #     transforms.ToPILImage(),
-        #     transforms.Resize((256, 256)),
-        #     transforms.ToTensor()
-        # ])
-
-        #full_mask = tf(output.cpu()).squeeze()
-        #print(full_mask.shape)
-
-        
+        #print(output.shape)    
         print("relative error: ", err)
 
     return output.cpu()
@@ -160,8 +137,6 @@ def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
     parser.add_argument('--model', '-m', default='github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
-    #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
-    #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
     parser.add_argument('--viz', '-v', action='store_true',
                         help='Visualize the images as they are processed')
     parser.add_argument('--no-save', '-n', action='store_true', help='Do not save the output masks')
@@ -222,9 +197,6 @@ if __name__ == '__main__':
     
     if not args.no_save:
         out_filename = out_files
-        #result = mask_to_image(mask)
-        #arr_to_tif(raster_f=image_path, segments=mask, out_tif=out_files)
-        #result.save(out_filename)
         logging.info(f'Mask saved to {out_filename}')
 
     mask = tensor_to_jpg(mask)

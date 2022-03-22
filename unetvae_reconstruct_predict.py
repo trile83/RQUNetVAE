@@ -31,7 +31,7 @@ im_type = image_path[30:38]
 #print(im_type)
 segment=False
 alpha = 0.1
-unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
 image_option = "noisy" # "clean" or "noisy"
 
 ##################################
@@ -158,7 +158,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -183,24 +183,17 @@ def get_output_filenames(args):
 
 if __name__ == '__main__':
     args = get_args()
-    #in_files = args.input
-    #out_files = get_output_filenames(args)
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3)
-    
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
-    
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
         net = UNet_VAE_RQ_old_trainable(3,alpha)
-
     elif unet_option == 'unet_vae_RQ_torch':
-        #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
         net = UNet_VAE_RQ_new_torch(3, segment, alpha)
-
     elif unet_option == 'unet_vae_RQ_scheme3':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
@@ -210,14 +203,13 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
+    model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth'
+
     net.to(device=device)
-    net.load_state_dict(torch.load(args.model, map_location=device))
+    net.load_state_dict(torch.load(model_saved, map_location=device))
 
     logging.info('Model loaded!')
-
-    #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
-    #img = Image.open(filename)
 
     mask = predict_img(net=net,
                         filepath=image_path,
@@ -225,10 +217,6 @@ if __name__ == '__main__':
                         out_threshold=0.5,
                         device=device)
 
-    print("mask shape: ", mask.shape)
-
-
-    #out_files = 'out/predict_va_softshrink_all_0.02.tif'
     out_files = 'out/predict_va_vae_recon_epoch1'
     im_out_files = 'out/img'
     
@@ -240,7 +228,6 @@ if __name__ == '__main__':
         logging.info(f'Mask saved to {out_filename}')
 
     mask = tensor_to_jpg(mask)
-    #print(mask)
     if image_option=='clean':
         img = jpg_to_tensor(image_path)[0]
     else:
@@ -248,7 +235,3 @@ if __name__ == '__main__':
     img = tensor_to_jpg(img)
 
     plot_img_and_mask_recon(img, mask)
-
-    if args.viz:
-        logging.info(f'Visualizing results for image {image_path}, close to continue...')
-        #plot_img_and_mask(img, mask)

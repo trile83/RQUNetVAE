@@ -14,11 +14,11 @@ To run the predict file for batch of images, users can run the following command
 ```python unetvae_recon_predict_batch.py```
 
 In the "unetvae_reconstruct_predict.py" file<br>
-1/ Users can change the UNet option to perform prediction of reconstruction: 'unet_vae_old', 'unet_vae_RQ_scheme1', or 'unet_vae_RQ_scheme3'<br>
-2/ Users can change the image option to perform prediction of reconstruction: 'clean' or 'noisy' ('noisy' option to add Gaussian noise into original image)<br>
-3/ Users can change the segmentation option to perform prediction of reconstruction: "segment=False" is for reconstruction<br>
-4/ Users can change the alpha level to perform prediction of reconstruction: between 0 and 1 for 'unet_vae_RQ_scheme1'<br>
-5/ Users can change the image type to perform prediction of reconstruction: the current setup is to condition between Sentinel2 and NAIP data, using image path, to determine the normalization process, should change it accordingly. Recommendations: 'im_type=sentinel'<br>
+1/ Users can change the UNet option to perform prediction of reconstruction: 'unet_vae_old', 'unet_vae_RQ_scheme1', or 'unet_vae_RQ_scheme3'.<br>
+2/ Users can change the image option to perform prediction of reconstruction: 'clean' or 'noisy' ('noisy' option to add Gaussian noise into original image).<br>
+3/ Users can change the segmentation option to perform prediction of reconstruction: "segment=False" is for reconstruction.<br>
+4/ Users can change the alpha level to perform prediction of reconstruction: between 0 and 1 for 'unet_vae_RQ_scheme1'. The larger the alpha, the smoother the image after reconstruction.<br>
+5/ Users can change the image type to perform prediction of reconstruction: the current setup is to condition between Sentinel2 and NAIP data, using image path, to determine the normalization process, should change it accordingly. Recommendations: 'im_type=sentinel'.<br>
 
 
 

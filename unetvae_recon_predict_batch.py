@@ -26,10 +26,9 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 segment=False
 alpha = 0.2
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_scheme1', 'unet_vae_RQ_scheme3'
 image_option = "noisy" # "clean" or "noisy"
 
 ##################################
@@ -77,16 +76,9 @@ from osgeo import gdal, gdal_array
 class_name = "sentinel2_xiqi" ## or va059
 data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
-
-
 im_type = class_name[:8]
-#print(im_type)
 
-# Create training data 
-def load_obj(name):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
-    
+# Create training data  
 def load_image_paths(path, name, mode, images):
     images[name] = {mode: defaultdict(dict)}
     # test, train, valid
@@ -144,8 +136,6 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             if img_data.shape == (256,256,3):
                 X_lst.append(img_data)
 
-
-        #X = np.array(X_lst).astype(np.float32)
         X = np.array(X_lst)
         if im_type != "sentinel":
             X = X/255
@@ -187,15 +177,12 @@ class satDataset(Dataset):
         X = self.data[index]
         Y = self.targets[index]
         
-        #X = Image.fromarray(self.data[index].astype(np.uint8))
         X = self.transforms(X)
         Y = self.transforms(Y)
         #Y = label
         return {
-            #'image': torch.as_tensor(X.copy()).float(),
             'image': X,
             'mask': X
-            #'mask': torch.as_tensor(X.copy()).float()
         }
 
 #####################
@@ -229,13 +216,6 @@ def predict_img(net,
     sat_dataset = satDataset(X=images, Y=labels)
     im_loader = DataLoader(sat_dataset, shuffle=True, **loader_args)
 
-    #if image_option=='clean':
-        #img = jpg_to_tensor(filepath)[0] ## clean image
-    #elif image_option=='noisy':
-        #img = jpg_to_tensor(filepath)[1] ## noisy image
-
-    #img = img.to(device=device, dtype=torch.float32)
-
     for batch in im_loader:
 
         images = batch['image']
@@ -244,13 +224,10 @@ def predict_img(net,
         images = images.to(device=device, dtype=torch.float32)
         true_masks = true_masks.to(device=device, dtype=torch.float32)
 
-        #print("true mask shape: ", true_masks.shape)
-
         images = torch.reshape(images, (5,3,256,256))
         true_masks = torch.reshape(true_masks, (5,3,256,256))
 
         print("image shape: ", images.shape)
-        #print("true mask shape: ", true_masks.shape)
 
         with torch.no_grad():
             output = net(images)
@@ -261,23 +238,6 @@ def predict_img(net,
                 output = output[3]
 
             print(output.shape)
-
-        # if  output.detach().cpu().numpy().all() == 0:
-        #     print("output is zero")
-        #     print(output.cpu())
-
-        #full_mask = output.cpu()
-        #full_mask = full_mask.reshape(256,256,3)
-        #print(full_mask.shape)
-
-        # tf = transforms.Compose([
-        #     transforms.ToPILImage(),
-        #     transforms.Resize((256, 256)),
-        #     transforms.ToTensor()
-        # ])
-
-        #full_mask = tf(output.cpu()).squeeze()
-        #print(full_mask.shape)
 
     return output.cpu(), images.cpu()
 
@@ -322,7 +282,6 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_old_trainable(3,alpha)
 
     elif unet_option == 'unet_vae_RQ_torch':
-        #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
         net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
     elif unet_option == 'unet_vae_RQ_scheme3':
@@ -334,13 +293,12 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
+    model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth'
+
     net.to(device=device)
-    net.load_state_dict(torch.load(args.model, map_location=device))
+    net.load_state_dict(torch.load(model_saved, map_location=device))
 
     logging.info('Model loaded!')
-
-    #for i, filename in enumerate(in_files):
-    #logging.info(f'\nPredicting image {image_path} ...')
 
     preds, imgs = predict_img(net=net,
                         scale_factor=1,
@@ -361,11 +319,7 @@ if __name__ == '__main__':
 
     for i in range(preds.size(0)):
         pred = tensor_to_jpg(preds[i])
-        #print(mask)
-        # if image_option=='clean':
-        #     img = jpg_to_tensor(image_path)[0]
-        # else:
-        #     img = jpg_to_tensor(image_path)[1]
+
         img = tensor_to_jpg(imgs[i])
 
         plot_img_and_mask_recon(img, pred)

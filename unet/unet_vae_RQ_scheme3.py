@@ -674,11 +674,11 @@ class UNet_VAE_RQ_scheme3(nn.Module):
 
         for index in range(len(size_lst)):
             tensor_size = size_lst[index]
-            if tensor_size not in beta_I_dict.keys():
-                beta_I_dict[index] = 0
-                beta_D_I_dict[index] = 0
-                psi_in_dict[index] = 0
-                psi_D_in_dict[index] = 0
+            # if tensor_size not in beta_I_dict.keys():
+            #     beta_I_dict[index] = 0
+            #     beta_D_I_dict[index] = 0
+            #     psi_in_dict[index] = 0
+            #     psi_D_in_dict[index] = 0
 
 
         #for index in range(len(size_lst)):
@@ -797,8 +797,8 @@ class UNet_VAE_RQ_scheme3(nn.Module):
                     c_I_ori[i][k,l,:,:] = c_I   ## get c_I values and save in dictionaries         
            
         # II. ISTA:
-        beta = 100   # 1, 601  
-        Iter = 10   # 20, 10
+        beta = 1   # 1, 601  
+        Iter = 3   # 20, 10
         #
         u = x
 
@@ -916,7 +916,6 @@ class UNet_VAE_RQ_scheme3(nn.Module):
             u = self.conv_final(u) 
             u = F.relu(u)
           
-
             # compute d_i_new:
             # Step 1 - Encoder:
             s_i_tau = {}

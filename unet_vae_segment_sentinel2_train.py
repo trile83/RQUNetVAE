@@ -59,9 +59,6 @@ data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
 
 # Create training data 
-def load_obj(name):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
     
 def load_image_paths(path, name, mode, images):
     images[name] = {mode: defaultdict(dict)}
@@ -169,7 +166,6 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             #plt.imshow()
             #plt.show()
 
-            break
 
             Y_lst.append(img_data)
          
@@ -448,7 +444,7 @@ if __name__ == '__main__':
     
     alpha = 0.0
     unet_option = "unet_vae_old"
-    segment = False ## which means adding batchnorm layers, better for segmentation
+    segment = True ## which means adding batchnorm layers, better for segmentation
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
@@ -476,7 +472,7 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=30,
+                  epochs=20,
                   batch_size=5,
                   learning_rate=1e-5,
                   device=device,

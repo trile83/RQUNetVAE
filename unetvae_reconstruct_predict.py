@@ -29,7 +29,7 @@ use_cuda = True
 im_type = image_path[30:38]
 segment=False
 alpha = 0.1
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
 image_option = "noisy" # "clean" or "noisy"
 
 ##################################
@@ -116,12 +116,12 @@ def predict_img(net,
 
         if unet_option == 'unet':
             output = output
-        else:
-            #err = output[5]
+        elif unet_option == 'unet_vae_RQ_scheme3':
+            err = output[5]
             output = output[3]
-
-        #print(output.shape)  
-        #print("relative error: ", err)
+            print("relative error: ", err)
+        else:
+            output = output[3]
 
     return output.cpu()
 

@@ -297,7 +297,6 @@ def train_net(net,
                 print("true mask shape: ", true_masks.shape)
 
                 images = torch.reshape(images, (batch_size,3,256,256))
-                #true_masks = torch.reshape(true_masks, (batch_size,4,256,256))
                 true_masks = torch.reshape(true_masks, (batch_size,256,256))
 
                 #print("image shape: ", images.shape)

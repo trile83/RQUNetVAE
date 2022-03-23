@@ -106,14 +106,15 @@ def plot_img_and_mask_4(image, mask_true, mask_pred):
     colors = ['blue', 'red', 'lawngreen']
     colormap = pltc.ListedColormap(colors)
 
-    mask_true = mask_true-1
+    mask_true[mask_true == 1] = 3
+    mask_true = mask_true-2
 
     #mask_pred[mask_pred==1]==0
     #mask_pred[mask_pred==2]==1
     #mask_pred[mask_pred==1]==0
 
      # lets plot some information here
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(60, 60))
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(60, 60))
     axes[0].title.set_text("Image")
     axes[0].imshow(image)
     axes[1].title.set_text("Ground Truth")
@@ -125,19 +126,19 @@ def plot_img_and_mask_4(image, mask_true, mask_pred):
     patches = [mpatches.Patch(color=colors[i], label="{l}".format(l=classes[i])) for i in range(len(classes))]
     # put those patched as legend-handles into the legend
 
-    box0 = axes[0].get_position()
-    box1 = axes[1].get_position()
-    box2 = axes[2].get_position()
-    axes[0].set_position([box0.x0, box0.y0 + box0.height * 0.1,
-                    box0.width, box0.height * 0.9])
-    axes[1].set_position([box1.x0, box1.y0 + box1.height * 0.1,
-                    box1.width, box1.height * 0.9])
-    axes[2].set_position([box2.x0, box2.y0 + box2.height * 0.1,
-                    box2.width, box2.height * 0.9])
+    # box0 = axes[0].get_position()
+    # box1 = axes[1].get_position()
+    # box2 = axes[2].get_position()
+    # axes[0].set_position([box0.x0, box0.y0 + box0.height * 0.1,
+    #                 box0.width, box0.height * 0.9])
+    # axes[1].set_position([box1.x0, box1.y0 + box1.height * 0.1,
+    #                 box1.width, box1.height * 0.9])
+    # axes[2].set_position([box2.x0, box2.y0 + box2.height * 0.1,
+    #                 box2.width, box2.height * 0.9])
 
-    # Put a legend below current axis
-    axes[1].legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -0.05),
-          fancybox=True, shadow=True, ncol=5)
+    # # Put a legend below current axis
+    # axes[1].legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -0.05),
+    #       fancybox=True, shadow=True, ncol=5)
     #plt.colorbar()
     plt.show()
 

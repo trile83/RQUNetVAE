@@ -69,17 +69,9 @@ def jpg_to_tensor(filepath=image_path):
     if im_type != "sentinel":
         pil=pil/255
     else:
-        pil = (pil - np.min(pil)) / (np.max(pil) - np.min(pil))
+        pil = rescale(pil)
 
     ## add gaussian noise
-    # row,col,ch= pil.shape
-    # mean = 0
-    # var = 0.1
-    # sigma = var**0.5
-    # gauss = np.random.normal(mean,sigma,(row,col,ch))
-    # gauss = gauss.reshape(row,col,ch)
-    # noisy = pil + gauss
-
     row,col,ch= pil.shape
     sigma = 0.05
     noisy = pil + sigma*np.random.randn(row,col,ch)
@@ -102,7 +94,7 @@ def tensor_to_jpg(tensor):
     #pil = tensor_to_pil(tensor)
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
-    #pil = rescale(pil)
+    pil = rescale(pil)
     
     return pil
 
@@ -113,9 +105,6 @@ def predict_img(net,
                 scale_factor=1,
                 out_threshold=0.5):
     net.eval()
-    #img = torch.from_numpy(BasicDataset.preprocess(full_img, scale_factor, is_mask=False))
-    #img = img.unsqueeze(0)
-    #full_img = Image.open(filepath)
 
     if image_option=='clean':
         img = jpg_to_tensor(filepath)[0] ## clean image
@@ -187,7 +176,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_batchnorm_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch10_0.0_3-23_batchnorm_segment.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')

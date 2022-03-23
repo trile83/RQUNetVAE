@@ -147,10 +147,8 @@ class satDataset(Dataset):
         Y = self.transforms(Y)
         #Y = label
         return {
-            #'image': torch.as_tensor(X.copy()).float(),
             'image': X,
             'mask': X
-            #'mask': torch.as_tensor(X.copy()).float()
         }
 
 def train_net(net,
@@ -167,8 +165,6 @@ def train_net(net,
     images = {}
     load_image_paths(data_dir, class_name, 'train', images)
 
-    #print(images[class_name]['train'])
-
     train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=130)
     images, labels = next(train_data_gen)
 
@@ -181,7 +177,6 @@ def train_net(net,
     # 2. Split into train / validation partitions
     n_val = len(val_images)
     n_train = len(train_images)
-    #train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
 
     # 3. Create data loaders
     loader_args = dict(batch_size=batch_size, num_workers=4, pin_memory=True)
@@ -216,7 +211,6 @@ def train_net(net,
     #network optimizer set up
     optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)  # goal: maximize Dice score
-    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=2)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.MSELoss()
     global_step = 0
@@ -240,8 +234,6 @@ def train_net(net,
 
                 images = images.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
-
-                #print("true mask shape: ", true_masks.shape)
 
                 images = torch.reshape(images, (batch_size,3,256,256))
                 true_masks = torch.reshape(true_masks, (batch_size,3,256,256))
@@ -288,7 +280,6 @@ def train_net(net,
                     print("total loss: ", loss)
 
                 optimizer.zero_grad()
-                #print('At step {}, loss is {}'.format(step, loss.data.cpu()))
                 loss.backward()
                 optimizer.step()
 
@@ -308,14 +299,6 @@ def train_net(net,
                     'epoch': epoch
                 })
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
-
-                #_, predicted = torch.max(masked_output.data, 1)
-                #total_train += true_masks.nelement()
-                #correct_train += predicted.eq(true_masks.data).sum().item()
-                #train_accuracy = 100 * correct_train/ total_train
-                #logging.info('Training accuracy: {}'.format(train_accuracy))
-
-                #print(net.named_parameters())
 
                 # Evaluation round
                 division_step = (n_train // (10 * batch_size))
@@ -357,11 +340,6 @@ def train_net(net,
     plt.legend(labels = ['reconstruction loss','kl loss','total loss'],loc='upper right')
     plt.show()
         
-
-        #if use_cuda:
-            #noise.data += sigma * torch.randn(noise.shape).cuda()
-        #else:
-            #noise.data += sigma * torch.randn(noise.shape)
 
 if __name__ == '__main__':
     #args = get_args()

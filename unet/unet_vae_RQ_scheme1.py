@@ -235,15 +235,12 @@ def RieszQuincunxWaveletTransform_Forward(f, beta_D_I, psi_D_in):
 
     F = fftshift(fft2(f))
 
-    #print("tensor shape: ", F.shape)
-    
     # Scaling coefficients:
     c_I = torch.real( ifft2( ifftshift( F * torch.conj(beta_D_I) ) ) )
     #print("c_I shape: ", c_I.shape)
         
     # Wavelet coefficients:
     d_in = torch.zeros((Scales+1, N+1, Height, Width))
-    #d_in = np.zeros((Height, Width, 64, 1))
     #print("shape d_in: ", d_in.shape)
 
     for i in range(0, N+1):
@@ -255,7 +252,6 @@ def RieszQuincunxWaveletTransform_Forward(f, beta_D_I, psi_D_in):
 # 5.
 def RieszQuincunxWaveletTransform_Inverse(c_I, d_in, beta_I, psi_in):
     
-    #from numpy.fft import fft2, ifft2, fftshift, ifftshift
     from torch.fft import fft2, ifft2, fftshift, ifftshift
     
     Scales1, N1, Height, Width = psi_in.shape
@@ -269,7 +265,6 @@ def RieszQuincunxWaveletTransform_Inverse(c_I, d_in, beta_I, psi_in):
     for i in range(0, Scales+1):
         for n in range(0, N+1):
             F_re_wavelet = F_re_wavelet + fftshift(fft2(d_in[i,n,:,:])) * psi_in[i,n,:,:]
-            #F_re_wavelet = fftshift(fft2(d_in[:,:,i,n])) * psi_in[:,:,i,n]
 
     # using both scaling coefficient and wavelet coefficient
     F_re = F_re_scaling + F_re_wavelet
@@ -289,10 +284,7 @@ def RieszWaveletTruncation(d_in, alpha, activation_method):
 
     for i in range(0, Scales+1):
         for n in range(0, N+1):
-            #thres = alpha*np.max(d_in[:,:,i,n])
             thres = alpha*torch.max(d_in[i,n,:,:])
-
-            #d_in_shrink[:,:,i,n] = ActivationFuncs(activation_method, d_in[:,:,i,n], thres)
             d_in[i,n,:,:] = ActivationFuncs(activation_method, d_in[i,n,:,:], thres)
 
     return d_in
@@ -576,7 +568,7 @@ class UNet_VAE_RQ_scheme1(nn.Module):
         self.up_convs = nn.ModuleList(self.up_convs)
 
         # shrink operator
-        self.s_shrink = RieszQuincunx(alpha)
+        # self.s_shrink = RieszQuincunx(alpha)
 
         ##############################
 
@@ -653,7 +645,6 @@ class UNet_VAE_RQ_scheme1(nn.Module):
     def reparameterize(self, mu, logvar): # similar to sampling class in Keras code
         std = logvar.mul(0.5).exp_()
         std = std.cuda()
-        #eps = torch.randn(*mu.size())
         eps = torch.normal(mu, std)
         eps = eps.cuda()
         z = mu + std * eps

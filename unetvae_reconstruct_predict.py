@@ -28,9 +28,9 @@ use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 im_type = image_path[30:38]
 segment=False
-alpha = 0.1
+alpha = 0.0
 unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
-image_option = "noisy" # "clean" or "noisy"
+image_option = "clean" # "clean" or "noisy"
 
 ##################################
 def rescale(image): ## function to rescale image for visualization

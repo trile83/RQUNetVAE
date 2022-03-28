@@ -355,7 +355,7 @@ def train_net(net,
                         #kl_loss = -0.5 * torch.sum(1 + output[2] - output[1].pow(2) - output[2].exp())
 
                         print("kl loss: ", kl_loss)
-                        scaled_kl = kl_loss*0.001
+                        scaled_kl = kl_loss*0.01
                         loss_items['kl_loss'].append(scaled_kl.detach().cpu())
 
                         loss = criterion(masked_output, true_masks) 
@@ -395,8 +395,7 @@ def train_net(net,
                 #logging.info('Training accuracy: {}'.format(train_accuracy))
 
                 #print(net.named_parameters())
-                
-
+            
                 division_step = (n_train // (10 * batch_size))
                 if division_step > 0:
                     if global_step % division_step == 0:
@@ -426,7 +425,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_3-18_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_3-28_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -442,11 +441,6 @@ def train_net(net,
         plt.xlabel('epoch')
         plt.legend(labels = ['crossentropy loss','kl loss','total loss'],loc='upper right')
         plt.show()
-
-        #if use_cuda:
-            #noise.data += sigma * torch.randn(noise.shape).cuda()
-        #else:
-            #noise.data += sigma * torch.randn(noise.shape)
 
 if __name__ == '__main__':
     #args = get_args()
@@ -490,7 +484,7 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=10,
+                  epochs=30,
                   batch_size=5,
                   learning_rate=1e-4,
                   device=device,

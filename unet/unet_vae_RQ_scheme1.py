@@ -243,8 +243,8 @@ def RieszQuincunxWaveletTransform_Forward(f, beta_D_I, psi_D_in):
     d_in = torch.zeros((Scales+1, N+1, Height, Width))
     #print("shape d_in: ", d_in.shape)
 
-    for i in range(0, N+1):
-        for n in range(0, Scales+1):
+    for i in range(0, Scales+1):
+        for n in range(0, N+1):
             d_in[i,n,:,:] = torch.real( ifft2( ifftshift( F * torch.conj(psi_D_in[i,n,:,:]) ) ) )
     
     return c_I, d_in
@@ -421,12 +421,10 @@ class DownConv(nn.Module):
         if self.segment:
             x = self.batchnorm(x)
         before_pool = x
-
-        if self.dropout:
-            x = self.drop(x)
-
         if self.pooling:
             x = self.pool(x)
+        if self.dropout:
+            x = self.drop(x)
         
         return x, before_pool
 
@@ -530,7 +528,7 @@ class UNet_VAE_RQ_scheme1(nn.Module):
         self.up_convs = []
 
         ##### parameters for RQ
-        self.scale = 3
+        self.scale = 5
         self.gamma = 1.2
 
         # create the encoder pathway and add to a list
@@ -539,7 +537,7 @@ class UNet_VAE_RQ_scheme1(nn.Module):
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False 
             if self.segment and i > (depth-3):
-                dropout = True
+                dropout = False
             else:
                 dropout = False
             shrink = True if i == 0 else False
@@ -602,7 +600,7 @@ class UNet_VAE_RQ_scheme1(nn.Module):
             
             #for i in range(Scales_quincunx):
             #beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(int(height/2**i), int(width/2**i), self.scale, self.gamma)
-            beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(height, width, self.scale, self.gamma)
+            beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(height, width, Scales_quincunx, self.gamma)
             beta_I, beta_D_I, psi_i, psi_D_i = beta_I.cuda(), beta_D_I.cuda(), psi_i.cuda(), psi_D_i.cuda()
 
             # Riesz Quincunx wavelet:

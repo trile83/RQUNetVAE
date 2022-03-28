@@ -559,7 +559,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False 
             if self.segment and i > (depth-3):
-                dropout = True
+                dropout = False
             else:
                 dropout = False
             shrink = True if i == 0 else False

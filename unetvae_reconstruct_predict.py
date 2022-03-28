@@ -120,8 +120,12 @@ def predict_img(net,
             err = output[5]
             output = output[3]
             print("relative error: ", err)
+            plt.plot(err.cpu())
+            plt.show()
         else:
             output = output[3]
+
+    
 
     return output.cpu()
 

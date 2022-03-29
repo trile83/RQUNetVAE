@@ -678,10 +678,8 @@ class UNet_VAE_RQ_scheme1(nn.Module):
         ## smoothing operations
         for i in range(len(s_dict)):
             f = s_dict[i]
-
             if i not in self.beta_D_I_dict.keys():
                 s_smooth_dict[i] = s_dict[i]
-
             else:
                 # Extract Riesz-Quincunx bases:
                 beta_I = self.beta_I_dict[i]

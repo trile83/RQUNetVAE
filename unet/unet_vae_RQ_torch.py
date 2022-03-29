@@ -245,8 +245,8 @@ def RieszQuincunxWaveletTransform_Forward(f, beta_D_I, psi_D_in):
     #print("shape d_in: ", d_in.shape)
 
 
-    for i in range(0, N+1):
-        for n in range(0, Scales+1):
+    for i in range(0, Scales+1):
+        for n in range(0, N+1):
             d_in[:,:,i,n] = torch.real( ifft2( ifftshift( F * torch.conj(psi_D_in[:,:,i,n]) ) ) )
     
     return c_I, d_in
@@ -305,7 +305,7 @@ class RieszQuincunx(nn.Module):
         super(RieszQuincunx, self).__init__()
 
         self.alpha = alpha
-        self.scale = 3
+        self.scale = 5
         self.gamma = 1.2
 
     def forward(self, x):

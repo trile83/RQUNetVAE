@@ -37,9 +37,9 @@ use_cuda = True
 
 im_type = image_path[17:25]
 segment=True
-alpha = 0.0
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
-image_option = "clean" # "clean" or "noisy"
+alpha = 1
+unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+image_option = "noisy" # "clean" or "noisy"
 
 ########
 def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
@@ -143,7 +143,7 @@ def jpg_to_tensor(filepath=image_path):
 
 
     row,col,ch= pil.shape
-    sigma = 0.05
+    sigma = 0.08
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
     #pil_to_tensor = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
@@ -238,7 +238,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch20_0.0_va059_copy_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch30_0.0_va059_segment.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
     #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
@@ -285,8 +285,8 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_old_trainable(3,alpha)
 
     elif unet_option == 'unet_vae_RQ_torch':
-        #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
-        net = UNet_VAE_RQ_new_torch(3, segment, alpha)
+        net = UNet_VAE_RQ_old_torch(3, segment, alpha = alpha)
+        #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
     elif unet_option == 'unet_vae_RQ_scheme3':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)

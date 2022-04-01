@@ -14,27 +14,77 @@ from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torch.utils.data import Dataset
+from collections import defaultdict
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix
+import itertools
 
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
-from unet import UNet_VAE_RQ_scheme1
+from unet import UNet_VAE_RQ_scheme1, UNet_test
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
+from sklearn.metrics import confusion_matrix  
+import numpy as np
 
-image_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
-mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
 
-use_cuda = True
-#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+def compute_iou(y_pred, y_true):
+    # ytrue, ypred is a flatten vector
+    y_pred = y_pred.flatten()
+    y_true = y_true.flatten()
+    current = confusion_matrix(y_true, y_pred, labels=[0, 1])
+    # compute mean iou
+    intersection = np.diag(current)
+    ground_truth_set = current.sum(axis=1)
+    predicted_set = current.sum(axis=0)
+    union = ground_truth_set + predicted_set - intersection
+    IoU = intersection / union.astype(np.float32)
+    return np.mean(IoU)
 
-im_type = image_path[30:38]
-#print(im_type)
-segment=False
-alpha = 0.2
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
-image_option = "noisy" # "clean" or "noisy"
 
-##################################
+def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
+    """
+    Args:
+        y_true:   2D numpy array with ground truth
+        y_pred:   2D numpy array with predictions (already processed)
+        nclasses: number of classes
+    Returns:
+        numpy array with confusion matrix
+    """
+
+    y_true = y_true.flatten()
+    y_pred = y_pred.flatten()
+
+    y_true = y_true-1
+    y_true[y_true == 3] == 2
+    if np.max(y_true)==255:
+        y_true[y_true == 255] = 2
+    y_true[y_true > 2] = 2
+
+    print("label unique values",np.unique(y_true))
+    print("prediction unique values",np.unique(y_pred))
+
+    # get overall weighted accuracy
+    accuracy = accuracy_score(y_true, y_pred, sample_weight=None)
+    balanced_accuracy = balanced_accuracy_score(y_true, y_pred, sample_weight=None)
+
+    #print(classification_report(y_true, y_pred))
+    ## get confusion matrix
+    con_mat = confusion_matrix(
+        y_true, y_pred
+    )
+
+    if norm:
+        con_mat = np.around(
+            con_mat.astype('float') / con_mat.sum(axis=1)[:, np.newaxis],
+            decimals=2
+        )
+
+    where_are_NaNs = np.isnan(con_mat)
+    con_mat[where_are_NaNs] = 0
+    return con_mat, accuracy, balanced_accuracy
+
+
 def rescale(image):
     map_img =  np.zeros((256,256,3))
     for band in range(3):
@@ -54,50 +104,12 @@ def rescale_truncate(image):
         map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
     return map_img
 
-#accept a file path to a jpg, return a torch tensor
-def jpg_to_tensor(filepath=image_path):
-
-    naip_fn = filepath
-    driverTiff = gdal.GetDriverByName('GTiff')
-    naip_ds = gdal.Open(naip_fn, 1)
-    nbands = naip_ds.RasterCount
-    # create an empty array, each column of the empty array will hold one band of data from the image
-    # loop through each band in the image nad add to the data array
-    data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
-    for i in range(1, nbands+1):
-        band = naip_ds.GetRasterBand(i).ReadAsArray()
-        data[:, i-1] = band.flatten()
-
-    img_data = np.zeros((naip_ds.RasterYSize, naip_ds.RasterXSize, naip_ds.RasterCount),
-                    gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
-    for b in range(img_data.shape[2]):
-        img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
-
-    pil = np.array(img_data)
-    if im_type != "sentinel":
-        pil=pil/255
-
-    row,col,ch= pil.shape
-    sigma = 0.1
-    noisy = pil + sigma*np.random.randn(row,col,ch)
-
-
-    #pil_to_tensor = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
-    transform_tensor = transforms.ToTensor()
-    if use_cuda:
-        noisy_tensor = transform_tensor(noisy).cuda()
-        tensor = transform_tensor(pil).cuda()
-
-    return tensor.view([1]+list(tensor.shape)), noisy_tensor.view([1]+list(noisy_tensor.shape))
-
 #accept a torch tensor, convert it to a jpg at a certain path
 def tensor_to_jpg(tensor):
     #tensor = tensor.view(tensor.shape[1:])
     tensor = tensor.squeeze(0)
     if use_cuda:
         tensor = tensor.cpu()
-    #tensor_to_pil = torchvision.transforms.Compose([torchvision.transforms.ToPILImage()])
-    #pil = tensor_to_pil(tensor)
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
     pil = rescale_truncate(pil)
@@ -105,21 +117,12 @@ def tensor_to_jpg(tensor):
 
 #########################
 # get data
-## Load data
-import os
-from collections import defaultdict
-import pickle
-from osgeo import gdal, gdal_array
-
 # load image folder path and image dictionary
-class_name = "sentinel2_xiqi" ## or va059
+class_name = "pa101" ## va059 or sentinel2_xiqi
 data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
 
-# Create training data 
-def load_obj(name):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
+# Create data 
     
 def load_image_paths(path, name, mode, images):
     images[name] = {mode: defaultdict(dict)}
@@ -133,8 +136,8 @@ def load_image_paths(path, name, mode, images):
         for ms_typ in ms: # ms_typ is either 'sat' or 'map'
             ms_path = os.path.join(typ_path, ms_typ)
             ms_img_fls = os.listdir(ms_path) # list all file path
-            ms_img_fls = [fl for fl in ms_img_fls if fl.endswith(".tiff") or fl.endswith(".tif")]
-            scene_ids = [fl.replace(".tiff", "").replace(".tif", "") for fl in ms_img_fls]
+            ms_img_fls = [fl for fl in ms_img_fls if fl.endswith(".tiff") or fl.endswith(".TIF")]
+            scene_ids = [fl.replace(".tiff", "").replace(".TIF", "") for fl in ms_img_fls]
             ms_img_fls = [os.path.join(ms_path, fl) for fl in ms_img_fls]           
             # Record each scene
             
@@ -145,9 +148,10 @@ def load_image_paths(path, name, mode, images):
                 elif ms_typ == "sat":
                     images[name][ttv_typ][ms_typ][scene_id] = fl
                  
-def data_generator(files, size=256, mode="train", batch_size=6):
+def data_generator(files, sigma=0.08, mode="test", batch_size=6):
     while True:
         all_scenes = list(files[mode]['sat'].keys())
+        #print(files[mode]['map'].keys())
         
         # Randomly choose scenes to use for data
         scene_ids = np.random.choice(all_scenes, size=batch_size, replace=True)
@@ -198,20 +202,24 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             for b in range(img_data.shape[2]):
                 img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
+            if img_data.shape == (256,256,1):
+                Y_lst.append(img_data)
 
-        #X = np.array(X_lst).astype(np.float32)
         X = np.array(X_lst)
         Y = np.array(Y_lst)
-        if im_type != "sentinel":
-            X = X/255
+        print("X shape: ", X.shape)
+        print("Y shape: ", Y.shape)
+        if im_type == "sentinel":
             for i in range(len(X)):
                 X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+        else:
+            X = X/255
 
         X_noise = []
 
         if image_option == 'noisy':
             row,col,ch= X[0].shape
-            sigma = 0.01
+            sigma = 0.08
             for img in X:
                 noisy = img + sigma*np.random.randn(row,col,ch)
                 X_noise.append(noisy)
@@ -242,23 +250,19 @@ class satDataset(Dataset):
         X = self.data[index]
         Y = self.targets[index]
         
-        #X = Image.fromarray(self.data[index].astype(np.uint8))
         X = self.transforms(X)
         Y = torch.LongTensor(Y)
-        #Y = label
         return {
-            #'image': torch.as_tensor(X.copy()).float(),
             'image': X,
             'mask': Y
-            #'mask': torch.as_tensor(X.copy()).float()
         }
 
 #####################
 
 #predict image
 def predict_img(net,
-                filepath,
                 device,
+                sigma,
                 scale_factor=1,
                 out_threshold=0.5):
     net.eval()
@@ -266,13 +270,13 @@ def predict_img(net,
 
     ### get data
     images = {}
-    load_image_paths(data_dir, class_name, 'train', images)
-    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=10)
+    load_image_paths(data_dir, class_name, 'test', images)
+    train_data_gen = data_generator(images[class_name], sigma, mode="test", batch_size=20)
 
     images, labels = next(train_data_gen)
 
-    images = images[:5]
-    labels = labels[:5]
+    images = images
+    labels = labels
 
     # 2. Split into train / validation partitions
     n_pred = len(images)
@@ -285,13 +289,6 @@ def predict_img(net,
     sat_dataset = satDataset(X=images, Y=labels)
     im_loader = DataLoader(sat_dataset, shuffle=True, **loader_args)
 
-    #if image_option=='clean':
-        #img = jpg_to_tensor(filepath)[0] ## clean image
-    #elif image_option=='noisy':
-        #img = jpg_to_tensor(filepath)[1] ## noisy image
-
-    #img = img.to(device=device, dtype=torch.float32)
-
     for batch in im_loader:
 
         images = batch['image']
@@ -302,40 +299,50 @@ def predict_img(net,
 
         #print("true mask shape: ", true_masks.shape)
 
-        images = torch.reshape(images, (5,3,256,256))
-        true_masks = torch.reshape(true_masks, (5,3,256,256))
+        images = torch.reshape(images, (20,3,256,256))
+        true_masks = torch.reshape(true_masks, (20,256,256))
 
-        print("image shape: ", images.shape)
+        #print("image shape: ", images.shape)
         #print("true mask shape: ", true_masks.shape)
 
         with torch.no_grad():
             output = net(images)
 
-            if unet_option == 'unet':
-                output = output
+            if unet_option == 'unet' or unet_option == 'simple_unet' or unet_option == 'unet_jaxony':
+                output = output.squeeze()
             else:
-                output = output[3]
+                output = output[0].squeeze()
 
-            print(output.shape)
+            #print("output squeeze shape: ", output.shape)
 
-        # if  output.detach().cpu().numpy().all() == 0:
-        #     print("output is zero")
-        #     print(output.cpu())
+            if net.num_classes > 1:
+                #probs = F.softmax(output, dim=1)
+                probs = output
+                #probs = F.log_softmax(output, dim=1)
+            else:
+                probs = torch.sigmoid(output[0])[0]
 
-        #full_mask = output.cpu()
-        #full_mask = full_mask.reshape(256,256,3)
-        #print(full_mask.shape)
+            tf = transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.Resize((256, 256)),
+                transforms.ToTensor()
+            ])
 
-        # tf = transforms.Compose([
-        #     transforms.ToPILImage(),
-        #     transforms.Resize((256, 256)),
-        #     transforms.ToTensor()
-        # ])
+            #print("probs shape: ", probs.shape)
 
-        #full_mask = tf(output.cpu()).squeeze()
-        #print(full_mask.shape)
+            probs = probs.detach().cpu()
+            full_mask = torch.argmax(probs, dim=1)
 
-    return output.cpu(), images.cpu()
+            #print(torch.unique(full_mask))
+            full_mask = torch.squeeze(full_mask).cpu().numpy()
+
+            #print("full masks shape: ",full_mask.shape)
+
+        if net.num_classes == 1:
+            return (full_mask > out_threshold).numpy(), images.cpu(), true_masks.cpu()
+        else:
+            return full_mask, images.cpu(), true_masks.cpu().numpy()
+
 
 
 def get_args():
@@ -363,23 +370,28 @@ def get_output_filenames(args):
 
 if __name__ == '__main__':
     args = get_args()
-    #in_files = args.input
-    #out_files = get_output_filenames(args)
+
+    use_cuda = True
+    im_type = "va059" ## sentinel or naip
+    segment=True
+    alpha = 0.46
+    sigma = 0.08
+    unet_option = 'unet_jaxony' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+    image_option = "clean" # "clean" or "noisy"
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
+    elif unet_option == 'unet_jaxony':
+        net = UNet_test(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3)
-    
-    elif unet_option == 'unet_vae_RQ_old':
-        net = UNet_VAE_RQ_old(3, alpha)
+        net = UNet_VAE_old(3, segment)
     
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
         net = UNet_VAE_RQ_old_trainable(3,alpha)
 
     elif unet_option == 'unet_vae_RQ_torch':
-        #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
-        net = UNet_VAE_RQ_new_torch(3, segment, alpha)
+        net = UNet_VAE_RQ_old_torch(3, segment, alpha)
+        #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
     elif unet_option == 'unet_vae_RQ_scheme3':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)
@@ -390,44 +402,52 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_2_epoch20_0.5_batchnorm_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch30_0.0_va059_segment.pth'
+
     net.to(device=device)
-    net.load_state_dict(torch.load(args.model, map_location=device))
+    if unet_option == 'unet_jaxony':
+        net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+    else:
+        net.load_state_dict(torch.load(model_unet_vae, map_location=device))
+    
 
     logging.info('Model loaded!')
 
-    #for i, filename in enumerate(in_files):
-    logging.info(f'\nPredicting image {image_path} ...')
-    #img = Image.open(filename)
-
-    preds, imgs = predict_img(net=net,
-                        filepath=image_path,
+    preds, imgs, labels = predict_img(net=net,
+                        sigma=sigma,
                         scale_factor=1,
                         out_threshold=0.5,
                         device=device)
 
+    # print("prediction shape: ", preds.shape)
+    # print("images shape: ", imgs.shape)
+    # print("labels shape: ", labels.shape)
 
-    #out_files = 'out/predict_va_softshrink_all_0.02.tif'
-    out_files = 'out/predict_va_vae_recon_epoch1'
-    im_out_files = 'out/img'
-    
-    if not args.no_save:
-        out_filename = out_files
-        #result = mask_to_image(mask)
-        #arr_to_tif(raster_f=image_path, segments=mask, out_tif=out_files)
-        #result.save(out_filename)
-        logging.info(f'Mask saved to {out_filename}')
-
-    for i in range(preds.size(0)):
-        pred = tensor_to_jpg(preds[i])
-        #print(mask)
-        # if image_option=='clean':
-        #     img = jpg_to_tensor(image_path)[0]
-        # else:
-        #     img = jpg_to_tensor(image_path)[1]
+    acc_lst = []
+    bal_acc_lst = []
+    mean_accuracy = 0
+    for i in range(imgs.size(0)):
+        pred = preds[i]
         img = tensor_to_jpg(imgs[i])
+        label = labels[i]
 
-        plot_img_and_mask_recon(img, pred)
+        cnf_matrix, accuracy, balanced_accuracy = confusion_matrix_func(
+            y_true=label, y_pred=pred, nclasses=3, norm=True
+        )
 
-    if args.viz:
-        logging.info(f'Visualizing results for image {image_path}, close to continue...')
-        #plot_img_and_mask(img, mask)
+        bal_acc_lst.append(balanced_accuracy)
+        acc_lst.append(accuracy)
+
+        #plot_img_and_mask_3(img, label, pred, balanced_accuracy)
+
+    acc_np = np.array(acc_lst)
+    bal_acc_np = np.array(bal_acc_lst)
+    mean_accuracy = np.mean(acc_np)
+    mean_bal_accuracy = np.mean(bal_acc_np)
+    std_acc = np.std(acc_np)
+    std_bal_acc = np.std(bal_acc_np)
+    print("average accuracy: ", mean_accuracy)
+    print("standard deviation accuracy: ", std_acc)
+    print("average balanced accuracy: ", mean_bal_accuracy)
+    print("standard deviation balanced accuracy: ", std_bal_acc)

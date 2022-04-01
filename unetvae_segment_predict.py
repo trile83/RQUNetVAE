@@ -29,8 +29,11 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
 #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+#image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+#mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+
+image_path = '/home/geoint/tri/pa101/test/sat/number14890.TIF'
+mask_true_path = '/home/geoint/tri/pa101/test/map/number14890.TIF'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -38,8 +41,8 @@ use_cuda = True
 im_type = image_path[17:25]
 segment=True
 alpha = 1
-unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
-image_option = "noisy" # "clean" or "noisy"
+unet_option = 'unet_jaxony' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+image_option = "clean" # "clean" or "noisy"
 
 ########
 def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
@@ -238,10 +241,8 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch30_0.0_va059_segment.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/', metavar='FILE',
                         help='Specify the file in which the model is stored')
-    #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
-    #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
     parser.add_argument('--viz', '-v', action='store_true',
                         help='Visualize the images as they are processed')
     parser.add_argument('--no-save', '-n', action='store_true', help='Do not save the output masks')
@@ -297,8 +298,14 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_2_epoch20_0.5_batchnorm_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch30_0.0_va059_segment.pth'
+
     net.to(device=device)
-    net.load_state_dict(torch.load(args.model, map_location=device))
+    if unet_option == 'unet_jaxony':
+        net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+    else:
+        net.load_state_dict(torch.load(model_unet_vae, map_location=device))
 
     logging.info('Model loaded!')
 
@@ -363,5 +370,5 @@ if __name__ == '__main__':
     if im_type == 'sentinel':
         plot_img_and_mask_4(img, label, mask)
     else:
-        plot_img_and_mask_3(img, label, mask)
+        plot_img_and_mask_3(img, label, mask, balanced_accuracy)
     #plot_img_and_mask_2(img, mask)

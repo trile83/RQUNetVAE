@@ -14,6 +14,7 @@ from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torch.utils.data import Dataset
+from collections import defaultdict
 
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
@@ -23,14 +24,6 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 
 # image_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
 # mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016002_0.tif'
-
-use_cuda = True
-#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-segment=False
-alpha = 0.2
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_scheme1', 'unet_vae_RQ_scheme3'
-image_option = "noisy" # "clean" or "noisy"
-
 ##################################
 def rescale(image):
     map_img =  np.zeros((256,256,3))
@@ -67,10 +60,7 @@ def tensor_to_jpg(tensor):
 #########################
 # get data
 ## Load data
-import os
-from collections import defaultdict
-import pickle
-from osgeo import gdal, gdal_array
+
 
 # load image folder path and image dictionary
 class_name = "sentinel2_xiqi" ## or va059
@@ -137,10 +127,11 @@ def data_generator(files, size=256, mode="train", batch_size=6):
                 X_lst.append(img_data)
 
         X = np.array(X_lst)
-        if im_type != "sentinel":
-            X = X/255
+        if im_type == "sentinel":
             for i in range(len(X)):
                 X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+        else:
+            X = X/255
 
         X_noise = []
 
@@ -270,6 +261,13 @@ if __name__ == '__main__':
     #in_files = args.input
     #out_files = get_output_filenames(args)
 
+    use_cuda = True
+    im_type = "naip" # sentinel or naip
+    segment = False
+    alpha = 0.2
+    unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old', 'unet_vae_RQ_scheme1', 'unet_vae_RQ_scheme3'
+    image_option = "noisy" # "clean" or "noisy"
+
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
@@ -293,10 +291,10 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth'
 
     net.to(device=device)
-    net.load_state_dict(torch.load(model_saved, map_location=device))
+    net.load_state_dict(torch.load(model_unet_vae, map_location=device))
 
     logging.info('Model loaded!')
 

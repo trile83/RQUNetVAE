@@ -61,8 +61,8 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
         y_true[y_true == 255] = 2
     y_true[y_true > 2] = 2
 
-    print("label unique values",np.unique(y_true))
-    print("prediction unique values",np.unique(y_pred))
+    #print("label unique values",np.unique(y_true))
+    #print("prediction unique values",np.unique(y_pred))
 
     # get overall weighted accuracy
     accuracy = accuracy_score(y_true, y_pred, sample_weight=None)
@@ -223,13 +223,9 @@ def data_generator(files, sigma=0.08, mode="test", batch_size=6):
             for img in X:
                 noisy = img + sigma*np.random.randn(row,col,ch)
                 X_noise.append(noisy)
-
             X_noise = np.array(X_noise)
-
             yield X_noise, Y
-
         else:
-
             yield X, Y
 
 class satDataset(Dataset):

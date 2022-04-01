@@ -766,8 +766,8 @@ class UNet_VAE_RQ_scheme3(nn.Module):
                     c_I_ori[i][k,l,:,:] = c_I   ## get c_I values and save in dictionaries         
            
         # II. ISTA:
-        beta = 1   # 1, 601  
-        Iter = 20   # 20, 10
+        beta = 100   # 1, 601  
+        Iter = 200   # 20, 10
         #
         u = x
 

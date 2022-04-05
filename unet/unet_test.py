@@ -81,8 +81,8 @@ class DownConv(nn.Module):
             self.drop = nn.Dropout(0.5)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
         #if self.batchnorm:
         x = self.batchnormalize(x)
         before_pool = x
@@ -252,16 +252,25 @@ class UNet_test(nn.Module):
         encoder_outs = []
          
         # encoder pathway, save outputs for merging
-        for i, module in enumerate(self.down_convs):
-            x, before_pool = module(x)
-            encoder_outs.append(before_pool)
+        # for i, module in enumerate(self.down_convs):
+        #     x, before_pool = module(x)
+        #     encoder_outs.append(before_pool)
 
+        # for i, module in enumerate(self.up_convs):
+        #     before_pool = encoder_outs[-(i+2)]
+        #     x = module(before_pool, x)
+
+        s_dict = {}  
+        for i, module in enumerate(self.down_convs):
+            x, s = module(x)
+            s_dict[i] = s        
+
+        # Step 2 - Decoder:
         for i, module in enumerate(self.up_convs):
-            before_pool = encoder_outs[-(i+2)]
-            x = module(before_pool, x)
+            s = s_dict[5-2-i]
+            x = module(s, x)
 
         #print(self.down_convs)
-
         #print(self.up_convs)
 
         # No softmax is used. This means you need to use

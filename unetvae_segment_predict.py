@@ -41,7 +41,7 @@ use_cuda = True
 im_type = image_path[17:25]
 segment=True
 alpha = 1
-unet_option = 'unet_jaxony' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
 image_option = "clean" # "clean" or "noisy"
 
 ########
@@ -298,8 +298,8 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_2_epoch20_0.5_batchnorm_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch30_0.0_va059_segment.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-04_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-04_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
     if unet_option == 'unet_jaxony':

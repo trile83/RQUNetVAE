@@ -26,7 +26,8 @@ from unet import UNet_VAE_RQ_scheme1, UNet_test
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 from sklearn.metrics import confusion_matrix  
 import numpy as np
-
+import pickle
+import matplotlib.pyplot as plt
 
 def compute_iou(y_pred, y_true):
     # ytrue, ypred is a flatten vector
@@ -148,13 +149,13 @@ def load_image_paths(path, name, mode, images):
                 elif ms_typ == "sat":
                     images[name][ttv_typ][ms_typ][scene_id] = fl
                  
-def data_generator(files, sigma=0.08, mode="test", batch_size=6):
+def data_generator(files, sigma=0.08, mode="test", batch_size=20):
     while True:
         all_scenes = list(files[mode]['sat'].keys())
         #print(files[mode]['map'].keys())
         
         # Randomly choose scenes to use for data
-        scene_ids = np.random.choice(all_scenes, size=batch_size, replace=True)
+        scene_ids = np.random.choice(all_scenes, size=batch_size, replace=False)
         
         X_fls = [files[mode]['sat'][scene_id] for scene_id in scene_ids]
         Y_fls = [files[mode]['map'][scene_id] for scene_id in scene_ids]        
@@ -219,7 +220,6 @@ def data_generator(files, sigma=0.08, mode="test", batch_size=6):
 
         if image_option == 'noisy':
             row,col,ch= X[0].shape
-            sigma = 0.08
             for img in X:
                 noisy = img + sigma*np.random.randn(row,col,ch)
                 X_noise.append(noisy)
@@ -258,21 +258,11 @@ class satDataset(Dataset):
 #predict image
 def predict_img(net,
                 device,
-                sigma,
+                images,
+                labels,
                 scale_factor=1,
                 out_threshold=0.5):
     net.eval()
-    #img = img.unsqueeze(0)
-
-    ### get data
-    images = {}
-    load_image_paths(data_dir, class_name, 'test', images)
-    train_data_gen = data_generator(images[class_name], sigma, mode="test", batch_size=20)
-
-    images, labels = next(train_data_gen)
-
-    images = images
-    labels = labels
 
     # 2. Split into train / validation partitions
     n_pred = len(images)
@@ -283,7 +273,7 @@ def predict_img(net,
     loader_args = dict(batch_size=n_pred, num_workers=4, pin_memory=True)
 
     sat_dataset = satDataset(X=images, Y=labels)
-    im_loader = DataLoader(sat_dataset, shuffle=True, **loader_args)
+    im_loader = DataLoader(sat_dataset, shuffle=False, **loader_args)
 
     for batch in im_loader:
 
@@ -370,52 +360,71 @@ if __name__ == '__main__':
     use_cuda = True
     im_type = "va059" ## sentinel or naip
     segment=True
-    alpha_range = np.arange(0,1,0.1)
-    sigma_range = np.arange(0,0.1,0.01)
-    unet_option = 'unet_jaxony' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
-    image_option = "clean" # "clean" or "noisy"
+    
+    sigma_range = np.arange(0.0,0.2,0.01)
+    unet_option = 'unet_vae_RQ_torch' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+    image_option = "noisy" # "clean" or "noisy"
+
+    acc_dict = {}
+
+    if unet_option == 'unet_vae_1':
+        net = UNet_VAE(3)
+    elif unet_option == 'unet_jaxony':
+        net = UNet_test(3)
+    elif unet_option == 'unet_vae_old':
+        net = UNet_VAE_old(3, segment)
+    
+    elif unet_option == 'unet_vae_RQ_allskip_trainable':
+        net = UNet_VAE_RQ_old_trainable(3,alpha=0)
+
+    elif unet_option == 'unet_vae_RQ_torch':
+        net = UNet_VAE_RQ_old_torch(3, segment, alpha=0)
+        #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
+
+    elif unet_option == 'unet_vae_RQ_scheme3':
+        net = UNet_VAE_RQ_scheme3(3, segment, alpha=0)
+    elif unet_option == 'unet_vae_RQ_scheme1':
+        net = UNet_VAE_RQ_scheme1(3, segment, alpha=0)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    logging.info(f'Using device {device}')
+
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-04_epoch20_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-04_epoch20_0.0_va059_segment.pth'
+
+    net.to(device=device)
+    if unet_option == 'unet_jaxony':
+        net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+        file_pickle_name = '/home/geoint/tri/github_files/unet_jaxony_dictionary_epoch20.pickle'
+        alpha_range= [0]
+    else:
+        net.load_state_dict(torch.load(model_unet_vae, map_location=device))
+        file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_epoch20_all.pickle'
+        alpha_range = np.arange(0,1.1,0.1)
+        #alpha_range = [0.5]
+
+    logging.info('Model loaded!')
 
     for sigma in sigma_range:
         print("sigma values: ", sigma)
+        acc_dict[sigma] = {}
+
+        ### get data
+        images = {}
+        load_image_paths(data_dir, class_name, 'test', images)
+        train_data_gen = data_generator(images[class_name], sigma, mode="test", batch_size=20)
+        images, labels = next(train_data_gen)
+        images = images
+        labels = labels
+       
         for alpha in alpha_range:
+            alpha = round(alpha,1)
             print("alpha values: ", alpha)
-            if unet_option == 'unet_vae_1':
-                net = UNet_VAE(3)
-            elif unet_option == 'unet_jaxony':
-                net = UNet_test(3)
-            elif unet_option == 'unet_vae_old':
-                net = UNet_VAE_old(3, segment)
-            
-            elif unet_option == 'unet_vae_RQ_allskip_trainable':
-                net = UNet_VAE_RQ_old_trainable(3,alpha)
-
-            elif unet_option == 'unet_vae_RQ_torch':
-                net = UNet_VAE_RQ_old_torch(3, segment, alpha)
-                #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
-
-            elif unet_option == 'unet_vae_RQ_scheme3':
-                net = UNet_VAE_RQ_scheme3(3, segment, alpha)
-            elif unet_option == 'unet_vae_RQ_scheme1':
-                net = UNet_VAE_RQ_scheme1(3, segment, alpha)
-
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            #logging.info(f'Loading model {args.model}')
-            logging.info(f'Using device {device}')
-
-            model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_2_epoch20_0.5_batchnorm_segment.pth'
-            model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch30_0.0_va059_segment.pth'
-
-            net.to(device=device)
-            if unet_option == 'unet_jaxony':
-                net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
-            else:
-                net.load_state_dict(torch.load(model_unet_vae, map_location=device))
-            
-
-            logging.info('Model loaded!')
+            acc_dict[sigma][alpha] = {}
 
             preds, imgs, labels = predict_img(net=net,
-                                sigma=sigma,
+                                images=images,
+                                labels=labels,
                                 scale_factor=1,
                                 out_threshold=0.5,
                                 device=device)
@@ -424,9 +433,12 @@ if __name__ == '__main__':
             # print("images shape: ", imgs.shape)
             # print("labels shape: ", labels.shape)
 
-            acc_lst = []
-            bal_acc_lst = []
-            mean_accuracy = 0
+            acc_dict[sigma][alpha]['accuracy'] = []
+            acc_dict[sigma][alpha]['balanced_accuracy'] = []
+            acc_dict[sigma][alpha]['avg_accuracy'] = 0
+            acc_dict[sigma][alpha]['avg_balanced_accuracy'] = 0
+            acc_dict[sigma][alpha]['std'] = 0
+            acc_dict[sigma][alpha]['balanced_std'] = 0
             for i in range(imgs.size(0)):
                 pred = preds[i]
                 img = tensor_to_jpg(imgs[i])
@@ -436,18 +448,60 @@ if __name__ == '__main__':
                     y_true=label, y_pred=pred, nclasses=3, norm=True
                 )
 
-                bal_acc_lst.append(balanced_accuracy)
-                acc_lst.append(accuracy)
+                acc_dict[sigma][alpha]['balanced_accuracy'].append(balanced_accuracy)
+                acc_dict[sigma][alpha]['accuracy'].append(accuracy)
+
+                acc_dict[sigma][alpha]
 
                 #plot_img_and_mask_3(img, label, pred, balanced_accuracy)
 
-            acc_np = np.array(acc_lst)
-            bal_acc_np = np.array(bal_acc_lst)
+            acc_np = np.array(acc_dict[sigma][alpha]['accuracy'])
+            bal_acc_np = np.array(acc_dict[sigma][alpha]['balanced_accuracy'])
             mean_accuracy = np.mean(acc_np)
             mean_bal_accuracy = np.mean(bal_acc_np)
+            
+            acc_dict[sigma][alpha]['avg_accuracy'] = mean_accuracy
+            acc_dict[sigma][alpha]['avg_balanced_accuracy'] = mean_bal_accuracy
+
             std_acc = np.std(acc_np)
             std_bal_acc = np.std(bal_acc_np)
-            print("average accuracy: ", mean_accuracy)
-            print("standard deviation accuracy: ", std_acc)
+            acc_dict[sigma][alpha]['std'] = std_acc
+            acc_dict[sigma][alpha]['balanced_std'] = std_bal_acc
+
+            # print("average accuracy: ", mean_accuracy)
+            # print("standard deviation accuracy: ", std_acc)
             print("average balanced accuracy: ", mean_bal_accuracy)
-            print("standard deviation balanced accuracy: ", std_bal_acc)
+            # print("standard deviation balanced accuracy: ", std_bal_acc)
+
+    max_acc = (0,0,0,0)
+    for j in sigma_range:
+        #print("sigma: ", j)
+        local_max = (0,0)
+        local_std = 0
+        for i in alpha_range:
+            #print("alpha value: ", i)
+            #print(acc_dict[j][i]['avg_balanced_accuracy'])
+            i = round(i,1)
+            
+            if acc_dict[j][i]['avg_balanced_accuracy'] > local_max[1]:
+                local_max = (i,acc_dict[j][i]['avg_balanced_accuracy'])
+                local_std = acc_dict[j][i]['balanced_std']
+                
+            max_acc = (j, local_max[0], local_max[1], local_std)
+
+        print(max_acc)
+
+    
+    with open(file_pickle_name, 'wb') as handle:
+        pickle.dump(acc_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    sigma_acc = []
+    for i in sigma_range:
+        if unet_option == 'unet_jaxony':
+            sigma_acc.append(acc_dict[i][0]['avg_balanced_accuracy'])
+        else:
+            sigma_acc.append(acc_dict[i][0.5]['avg_balanced_accuracy'])
+
+    plt.title('Sigma vs Accuracy')
+    plt.plot(sigma_range, sigma_acc)
+    plt.show()

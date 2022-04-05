@@ -362,7 +362,7 @@ if __name__ == '__main__':
     segment=True
     
     sigma_range = np.arange(0.0,0.2,0.01)
-    unet_option = 'unet_vae_RQ_torch' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+    unet_option = 'unet_jaxony' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
     image_option = "noisy" # "clean" or "noisy"
 
     acc_dict = {}
@@ -389,13 +389,13 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-04_epoch20_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-04_epoch20_0.0_va059_segment.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-04_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
     if unet_option == 'unet_jaxony':
         net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
-        file_pickle_name = '/home/geoint/tri/github_files/unet_jaxony_dictionary_epoch20.pickle'
+        file_pickle_name = '/home/geoint/tri/github_files/unet_jaxony_dictionary_4-5.pickle'
         alpha_range= [0]
     else:
         net.load_state_dict(torch.load(model_unet_vae, map_location=device))

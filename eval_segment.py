@@ -5,8 +5,8 @@ import numpy as np
 
 if __name__ == '__main__':
 
-    unet_jaxony_dict_file = '/home/geoint/tri/github_files/unet_jaxony_dictionary_epoch20.pickle'
-    unet_vae_rq_dict_file = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_epoch20.pickle'
+    unet_jaxony_dict_file = '/home/geoint/tri/github_files/unet_jaxony_dictionary_4-5.pickle'
+    unet_vae_rq_dict_file = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_new.pickle'
     
     # read the pickle object
     with open(unet_jaxony_dict_file, 'rb') as input_file:
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     sigma_acc_unet_vae_rq_4 = []
     for i in sigma_range:
         sigma_acc_unet_jaxony.append(unet_jaxony_dict[i][0]['avg_balanced_accuracy'])
-        sigma_acc_unet_vae_rq.append(unet_vae_rq_dict[i][0.5]['avg_balanced_accuracy'])
+        sigma_acc_unet_vae_rq.append(unet_vae_rq_dict[i][0.2]['avg_balanced_accuracy'])
         #sigma_acc_unet_vae_rq_1.append(unet_vae_rq_dict[i][0.4]['avg_balanced_accuracy'])
         #sigma_acc_unet_vae_rq_2.append(unet_vae_rq_dict[i][0.6]['avg_balanced_accuracy'])
         #sigma_acc_unet_vae_rq_3.append(unet_vae_rq_dict[i][0.7]['avg_balanced_accuracy'])
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     std_unet_vae_rq = []
     for i in sigma_range:
         std_unet_jaxony.append(unet_jaxony_dict[i][0]['balanced_std'])
-        std_unet_vae_rq.append(unet_vae_rq_dict[i][0.5]['balanced_std'])
+        std_unet_vae_rq.append(unet_vae_rq_dict[i][0.2]['balanced_std'])
 
     sigma_acc_unet_jaxony = np.array(sigma_acc_unet_jaxony)
     sigma_acc_unet_vae_rq = np.array(sigma_acc_unet_vae_rq)

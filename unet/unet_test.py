@@ -133,8 +133,8 @@ class UpConv(nn.Module):
             x = torch.cat((from_up, from_down), 1)
         else:
             x = from_up + from_down
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
         return x
 
 
@@ -212,7 +212,7 @@ class UNet_test(nn.Module):
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False
             #batchnorm = True if i < depth-1 else False
-            dropout = False if i > (depth-3) else False
+            dropout = False
 
             #down_conv = DownConv(ins, outs, pooling=pooling, batchnorm=batchnorm, dropout=dropout)
             down_conv = DownConv(ins, outs, pooling=pooling, dropout=dropout)
@@ -227,8 +227,8 @@ class UNet_test(nn.Module):
                 merge_mode=merge_mode)
             self.up_convs.append(up_conv)
 
-        #self.conv_final = conv1x1(outs, self.num_classes)
-        self.conv_final = conv_out(outs, self.num_classes)
+        self.conv_final = conv1x1(outs, self.num_classes)
+        #self.conv_final = conv_out(outs, self.num_classes)
 
         # add the list of modules to current module
         self.down_convs = nn.ModuleList(self.down_convs)

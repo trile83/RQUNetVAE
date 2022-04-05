@@ -29,11 +29,11 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
 #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-#image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-#mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
-image_path = '/home/geoint/tri/pa101/test/sat/number14890.TIF'
-mask_true_path = '/home/geoint/tri/pa101/test/map/number14890.TIF'
+#image_path = '/home/geoint/tri/pa101/test/sat/number14890.TIF'
+#mask_true_path = '/home/geoint/tri/pa101/test/map/number14890.TIF'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -298,8 +298,8 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-04_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-04_epoch30_0.0_va059_segment.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
     if unet_option == 'unet_jaxony':

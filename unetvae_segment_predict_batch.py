@@ -283,7 +283,7 @@ def predict_img(net,
     loader_args = dict(batch_size=n_pred, num_workers=4, pin_memory=True)
 
     sat_dataset = satDataset(X=images, Y=labels)
-    im_loader = DataLoader(sat_dataset, shuffle=True, **loader_args)
+    im_loader = DataLoader(sat_dataset, shuffle=False, **loader_args)
 
     for batch in im_loader:
 

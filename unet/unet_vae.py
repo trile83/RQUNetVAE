@@ -58,7 +58,7 @@ class DownConv(nn.Module):
     A helper Module that performs 2 convolutions and 1 MaxPool.
     A ReLU activation follows each convolution.
     """
-    def __init__(self, in_channels, out_channels, segment = True, pooling=True, dropout=False):
+    def __init__(self, in_channels, out_channels, segment = True, pooling=True, batchnorm=True, dropout=False):
         super(DownConv, self).__init__()
 
         self.in_channels = in_channels
@@ -66,10 +66,11 @@ class DownConv(nn.Module):
         self.segment = segment
         self.pooling = pooling
         self.dropout = dropout
+        self.batchnorm = batchnorm
         
         self.conv1 = conv3x3(self.in_channels, self.out_channels)
         self.conv2 = conv3x3(self.out_channels, self.out_channels)
-        self.batchnorm = nn.BatchNorm2d(out_channels)
+        self.batchnormalize = nn.BatchNorm2d(out_channels)
 
         if self.pooling:
             self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -81,7 +82,7 @@ class DownConv(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         if self.segment:
-            x = self.batchnorm(x) # better for segmentation
+            x = self.batchnormalize(x) # better for segmentation
         before_pool = x
         if self.pooling:
             x = self.pool(x)
@@ -192,12 +193,13 @@ class UNet_VAE_old(nn.Module):
             ins = self.in_channels if i == 0 else outs
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False
+            batchnorm = True if i < depth-1 else False
             if self.segment and i > (depth-3):
                 dropout = False
             else:
                 dropout = False
 
-            down_conv = DownConv(ins, outs, segment=self.segment, pooling=pooling, dropout=dropout)
+            down_conv = DownConv(ins, outs, segment=self.segment, pooling=pooling, batchnorm=batchnorm, dropout=dropout)
             self.down_convs.append(down_conv)
 
         #Flatten
@@ -225,7 +227,7 @@ class UNet_VAE_old(nn.Module):
         self.fc3 = nn.Linear(latent_dim, 262144)
         self.act = nn.ReLU()
 
-        self.reset_params()
+        #self.reset_params()
 
     @staticmethod
     def weight_init(m):
@@ -254,12 +256,16 @@ class UNet_VAE_old(nn.Module):
         return self.bottleneck(self.encoder(x))[0]
 
     def forward(self, x):
-        encoder_outs = []
          
         # encoder pathway, save outputs for merging
+        # for i, module in enumerate(self.down_convs):
+        #     x, before_pool = module(x)
+        #     encoder_outs.append(before_pool)
+
+        s_dict = {}  
         for i, module in enumerate(self.down_convs):
-            x, before_pool = module(x)
-            encoder_outs.append(before_pool)
+            x, s = module(x)
+            s_dict[i] = s   
 
         x_encoded = self.flatten(x)
 
@@ -269,12 +275,19 @@ class UNet_VAE_old(nn.Module):
         z = torch.reshape(z, x.shape)
 
         # decoder pathway
+        # for i, module in enumerate(self.up_convs):
+        #     before_pool = encoder_outs[-(i+2)]
+        #     if i == 0:
+        #         x = module(before_pool, z)
+        #     else:
+        #         x = module(before_pool, x)
+
         for i, module in enumerate(self.up_convs):
-            before_pool = encoder_outs[-(i+2)]
+            s = s_dict[5-2-i]
             if i == 0:
-                x = module(before_pool, z)
+                x = module(s, z)
             else:
-                x = module(before_pool, x)
+                x = module(s, x)
 
         x = self.conv_final(x)
         x_recon = F.relu(x)

@@ -324,8 +324,8 @@ class RieszQuincunx(nn.Module):
         #alpha = self.alpha.detach().cpu().numpy()
         #alpha = self.alpha.cpu().detach().numpy()
 
-        print("input tensor shape: ", f.shape)
-        print("alpha value: ", self.alpha)
+        # print("input tensor shape: ", f.shape)
+        # print("alpha value: ", self.alpha)
         
         #alpha = 0
 

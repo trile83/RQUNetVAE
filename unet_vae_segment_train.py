@@ -25,8 +25,8 @@ from torch.utils.data import Dataset, TensorDataset
 from torch import optim
 from tqdm import tqdm
 
-from unet import UNet_VAE, UNet_VAE_old
-from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
+from unet import UNet_VAE, UNet_VAE_old, UNet_test
+from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_old_trainable
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
@@ -235,7 +235,7 @@ def train_net(net,
     loader_args = dict(batch_size=batch_size, num_workers=4, pin_memory=True)
 
     transformed_dataset = satDataset(X=train_images, Y=train_labels)
-    train_loader = DataLoader(transformed_dataset, shuffle=True, **loader_args)
+    train_loader = DataLoader(transformed_dataset, shuffle=False, **loader_args)
 
     #transformed_dataset_val = satDataset(X=val_images, Y=val_labels)
     #val_loader = DataLoader(transformed_dataset_val, shuffle=True, **loader_args)
@@ -425,7 +425,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_3-28_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_4-04_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -459,6 +459,8 @@ if __name__ == '__main__':
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
+    elif unet_option == 'unet_jaxony':
+        net = UNet_test(3)
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':

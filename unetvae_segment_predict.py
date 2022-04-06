@@ -29,18 +29,18 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
 #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+#image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+#mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
-#image_path = '/home/geoint/tri/pa101/test/sat/number14890.TIF'
-#mask_true_path = '/home/geoint/tri/pa101/test/map/number14890.TIF'
+image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 im_type = image_path[17:25]
 segment=True
-alpha = 1
+alpha = 0.0
 unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
 image_option = "clean" # "clean" or "noisy"
 

@@ -256,16 +256,16 @@ if __name__ == '__main__':
     #image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
     #mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
-    image_path = '/home/geoint/tri/pa101/test/sat/number14890.TIF'
-    mask_true_path = '/home/geoint/tri/pa101/test/map/number14890.TIF'
+    image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+    mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
     use_cuda = True
     #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     im_type = image_path[17:25]
     segment=True
-    alpha = 1
-    unet_option = 'unet_jaxony' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    alpha = 0.5
+    unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
     image_option = 'noisy' # "clean" or "noisy"
 
     if unet_option == 'unet_vae_1':
@@ -295,7 +295,7 @@ if __name__ == '__main__':
     logging.info(f'Using device {device}')
 
     model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-04_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
     if unet_option == 'unet_jaxony':
@@ -309,8 +309,9 @@ if __name__ == '__main__':
     logging.info(f'\nPredicting image {image_path} ...')
 
     # looping 50 times
+    loop_num = 5
     pred_masks = []
-    for i in range(50):
+    for i in range(loop_num):
 
         mask = predict_img(net=net,
                             filepath=image_path,
@@ -355,13 +356,25 @@ if __name__ == '__main__':
     label = np.array(img_data)
     print(label.shape)
     label = label.reshape((256,256))
+    label = label - 1
+    if np.max(label)>2:
+        label[label > 2] = 2
 
     #####
     # get 1 line of pixel in the ground truth
     index_line = 127
 
+    label_line_arr = label[index_line,:,]
     pred_line_arr = []
+    for i in range(loop_num):
+        pred_line_arr.append(pred_masks[i,index_line,:])
+
+    plt.plot(label_line_arr, label='train label')
+    for index in range(loop_num):
+        plt.scatter(range(256), pred_line_arr[index])
+    plt.show()
     
+
 
     ##########
 

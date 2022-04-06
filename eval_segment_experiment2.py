@@ -19,6 +19,7 @@ import matplotlib.colors as pltc
 from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from sklearn.metrics import classification_report, confusion_matrix
 import itertools
+import pickle
 
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
@@ -309,7 +310,7 @@ if __name__ == '__main__':
     logging.info(f'\nPredicting image {image_path} ...')
 
     # looping 50 times
-    loop_num = 5
+    loop_num = 50
     pred_masks = []
     for i in range(loop_num):
 

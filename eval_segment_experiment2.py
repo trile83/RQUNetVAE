@@ -299,6 +299,7 @@ if __name__ == '__main__':
     model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
+
     if unet_option == 'unet_jaxony':
         net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
     else:
@@ -309,27 +310,6 @@ if __name__ == '__main__':
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
 
-    # looping 50 times
-    loop_num = 50
-    pred_masks = []
-    for i in range(loop_num):
-
-        mask = predict_img(net=net,
-                            filepath=image_path,
-                            scale_factor=1,
-                            out_threshold=0.5,
-                            device=device)
-
-        pred_masks.append(mask)
-
-    pred_masks = np.array(pred_masks)
-
-
-    #out_files = 'out/predict_va_softshrink_all_0.02.tif'
-    # out_files = 'out/predict_va_unet_epoch40_new.tif'
-    # out_filename = out_files
-    # logging.info(f'Mask saved to {out_files}')
-        
     ## get image
     if image_option=='clean':
         img = jpg_to_tensor(image_path)[0]
@@ -361,21 +341,71 @@ if __name__ == '__main__':
     if np.max(label)>2:
         label[label > 2] = 2
 
+    # looping 50 times
+    loop_num = 50
+    pred_masks = []
+    # for i in range(loop_num):
+
+    #     mask = predict_img(net=net,
+    #                         filepath=image_path,
+    #                         scale_factor=1,
+    #                         out_threshold=0.5,
+    #                         device=device)
+
+    #     pred_masks.append(mask)
+
+
+    #pred_masks = np.array(pred_masks)
+
+    file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2.pickle'
+
+    # save pickle file
+    # with open(file_pickle_name, 'wb') as handle:
+    #     pickle.dump(pred_masks, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # load pickle file
+    with open(file_pickle_name, 'rb') as input_file:
+        pred_masks = pickle.load(input_file)
+
+    print("predicted masks shape: ", pred_masks.shape)
+
+
+    #for i in range(loop_num):
+        #plot_img_and_mask_3(img, label, pred_masks[i], 0)
+
+
+    #out_files = 'out/predict_va_softshrink_all_0.02.tif'
+    # out_files = 'out/predict_va_unet_epoch40_new.tif'
+    # out_filename = out_files
+    # logging.info(f'Mask saved to {out_files}')
+        
+
     #####
     # get 1 line of pixel in the ground truth
     index_line = 127
 
     label_line_arr = label[index_line,:,]
+    print(label_line_arr.shape)
     pred_line_arr = []
-    for i in range(loop_num):
-        pred_line_arr.append(pred_masks[i,index_line,:])
+    # for i in range(loop_num):
+    #     pred_line_arr.append(pred_masks[i,index_line,:])
+
+    pred_line_arr = pred_masks[:,index_line,:]
+
+    print(pred_line_arr.shape)
+    
+    #pred_line_np = np.array(pred_line_arr)
+    mean_pred_line = np.mean(pred_line_arr, axis=0)
+    std_pred_line = np.std(pred_line_arr, axis=0)
 
     plt.plot(label_line_arr, label='train label')
-    for index in range(loop_num):
-        plt.scatter(range(256), pred_line_arr[index])
+    # for index in range(loop_num):
+    #     plt.scatter(range(256), pred_line_arr[index])
+    plt.plot(range(256), mean_pred_line, label = 'avg predicted value')
+    plt.fill_between(range(256), mean_pred_line-std_pred_line, mean_pred_line+std_pred_line, alpha=0.5)
+    plt.legend()
     plt.show()
     
-
 
     ##########
 

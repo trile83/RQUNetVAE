@@ -129,7 +129,7 @@ def BsplineQuincunxScalingWaveletFuncs(Height, Width, Scales, gamma):
     # check Identity:
     waveletFunc = torch.zeros((Height, Width), dtype=torch.complex64)
     for i in range(1, Scales+1):
-        waveletFunc = waveletFunc + np.conj(psi_D_i[i,:,:])*psi_i[i,:,:]
+        waveletFunc = waveletFunc + torch.conj(psi_D_i[i,:,:])*psi_i[i,:,:]
         
     psi_i[0,:,:] = ( Matrix_one - scalingFunc - waveletFunc ) / ( torch.conj(psi_D_i[0,:,:])  ) 
 
@@ -529,7 +529,7 @@ class UNet_VAE_RQ_scheme1(nn.Module):
         self.up_convs = []
 
         ##### parameters for RQ
-        self.scale = 5
+        self.scale = 3
         self.gamma = 1.2
 
         # create the encoder pathway and add to a list
@@ -575,7 +575,6 @@ class UNet_VAE_RQ_scheme1(nn.Module):
         # RQ shrinkage calculation
 
         size_lst = [256,128,64,32,16]
-        Scales_quincunx = 5
         # Tri: Create dictionary where first key is the filter_size of tensors, second key is the quincunx scale
         # Step 0 - Riesz-Quincunx filter banks:
         beta_I_dict = {}
@@ -585,24 +584,15 @@ class UNet_VAE_RQ_scheme1(nn.Module):
 
         # add keys into 4 dictionary with tensor size, so that is easier to call out these values for shrinkage operation
 
-        for index in range(len(size_lst)):
-            tensor_size = size_lst[index]
-            if tensor_size not in beta_I_dict.keys():
-                beta_I_dict[index] = 0
-                beta_D_I_dict[index] = 0
-                psi_in_dict[index] = 0
-                psi_D_in_dict[index] = 0
-
-
         #for index in range(len(size_lst)):
-        for index in range(Scales_quincunx):
+        for index in range(self.scale):
             tensor_size = size_lst[index]
             height = size_lst[index]       
             width = size_lst[index]
             
             #for i in range(Scales_quincunx):
             #beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(int(height/2**i), int(width/2**i), self.scale, self.gamma)
-            beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(height, width, Scales_quincunx, self.gamma)
+            beta_I, beta_D_I, psi_i, psi_D_i = BsplineQuincunxScalingWaveletFuncs(height, width, self.scale, self.gamma)
             beta_I, beta_D_I, psi_i, psi_D_i = beta_I.cuda(), beta_D_I.cuda(), psi_i.cuda(), psi_D_i.cuda()
 
             # Riesz Quincunx wavelet:
@@ -710,7 +700,7 @@ class UNet_VAE_RQ_scheme1(nn.Module):
         # Step 4 - decoder:
         for i, module in enumerate(self.up_convs):
 
-            s = s_smooth_dict[5-2-i]
+            s = s_smooth_dict[self.depth-2-i]
             if i == 0: ## if i==0 then concatenate the variation layer (z) instead of original downconv tensor (x), then after the loop, x becomes the upconv tensor
                 x = module(s, z)
             else:

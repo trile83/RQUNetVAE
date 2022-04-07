@@ -29,11 +29,11 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
 #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-#image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-#mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
-image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
-mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
+#image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+#mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

@@ -118,7 +118,7 @@ def tensor_to_jpg(tensor):
 #########################
 # get data
 # load image folder path and image dictionary
-class_name = "pa101" ## va059 or sentinel2_xiqi
+class_name = "va059" ## va059, pa101 or sentinel2_xiqi
 data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
 
@@ -266,8 +266,8 @@ def predict_img(net,
 
     ### get data
     images = {}
-    load_image_paths(data_dir, class_name, 'test', images)
-    train_data_gen = data_generator(images[class_name], sigma, mode="test", batch_size=20)
+    load_image_paths(data_dir, class_name, 'train', images)
+    train_data_gen = data_generator(images[class_name], sigma, mode="train", batch_size=10)
 
     images, labels = next(train_data_gen)
 
@@ -295,8 +295,8 @@ def predict_img(net,
 
         #print("true mask shape: ", true_masks.shape)
 
-        images = torch.reshape(images, (20,3,256,256))
-        true_masks = torch.reshape(true_masks, (20,256,256))
+        images = torch.reshape(images, (n_pred,3,256,256))
+        true_masks = torch.reshape(true_masks, (n_pred,256,256))
 
         #print("image shape: ", images.shape)
         #print("true mask shape: ", true_masks.shape)
@@ -370,7 +370,7 @@ if __name__ == '__main__':
     use_cuda = True
     im_type = "va059" ## sentinel or naip
     segment=True
-    alpha = 0.46
+    alpha = 0.0
     sigma = 0.08
     unet_option = 'unet_jaxony' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
     image_option = "clean" # "clean" or "noisy"
@@ -398,8 +398,8 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_2_epoch20_0.5_batchnorm_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_3-28_epoch30_0.0_va059_segment.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
     if unet_option == 'unet_jaxony':

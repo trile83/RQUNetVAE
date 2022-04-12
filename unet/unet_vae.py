@@ -81,7 +81,7 @@ class DownConv(nn.Module):
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-        if self.segment:
+        if self.segment and self.batchnorm:
             x = self.batchnormalize(x) # better for segmentation
         before_pool = x
         if self.pooling:
@@ -142,7 +142,7 @@ class UpConv(nn.Module):
 class UNet_VAE_old(nn.Module):
     def __init__(self, num_classes, segment, in_channels=3, depth=5, 
                  start_filts=64, up_mode='upsample', 
-                 merge_mode='concat', enc_out_dim=1024, latent_dim=64):
+                 merge_mode='concat', enc_out_dim=1024, latent_dim=100):
         """
         Arguments:
             in_channels: int, number of channels in the input tensor.
@@ -222,9 +222,9 @@ class UNet_VAE_old(nn.Module):
         self.up_convs = nn.ModuleList(self.up_convs)
 
         # the dimension before flatten is 1024 x 16 x 16 = 262144
-        self.fc1 = nn.Linear(262144, latent_dim)
-        self.fc2 = nn.Linear(262144, latent_dim)
-        self.fc3 = nn.Linear(latent_dim, 262144)
+        self.fc1 = nn.Linear(enc_out_dim * 16 * 16, latent_dim)
+        self.fc2 = nn.Linear(enc_out_dim * 16 * 16, latent_dim)
+        self.fc3 = nn.Linear(latent_dim, enc_out_dim * 16 * 16)
         self.act = nn.ReLU()
 
         #self.reset_params()

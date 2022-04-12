@@ -305,7 +305,7 @@ class RieszQuincunx(nn.Module):
         super(RieszQuincunx, self).__init__()
 
         self.alpha = alpha
-        self.scale = 5
+        self.scale = 3
         self.gamma = 1.2
 
     def forward(self, x):
@@ -507,7 +507,7 @@ class UpConv(nn.Module):
 class UNet_VAE_RQ_old_torch(nn.Module):
     def __init__(self, num_classes, segment, alpha=0.0, in_channels=3, depth=5, 
                  start_filts=64, up_mode='upsample', 
-                 merge_mode='concat', enc_out_dim=1024, latent_dim=64):
+                 merge_mode='concat', enc_out_dim=1024, latent_dim=100):
         """
         Arguments:
             in_channels: int, number of channels in the input tensor.
@@ -564,7 +564,8 @@ class UNet_VAE_RQ_old_torch(nn.Module):
                 dropout = False
             else:
                 dropout = False
-            shrink = True if i == 0 else False
+            #shrink = True if i == 0 else False
+            shrink = True if i < depth-1 else False
 
             down_conv = DownConv(ins, outs, segment=self.segment, alpha=self.alpha, pooling=pooling, batchnorm=batchnorm, dropout=dropout, shrink=shrink)
             self.down_convs.append(down_conv)
@@ -595,7 +596,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
         self.fc3 = nn.Linear(latent_dim, 262144)
         self.act = nn.ReLU()
 
-        self.reset_params()
+        #self.reset_params()
 
     @staticmethod
     def weight_init(m):
@@ -646,7 +647,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
 
         # decoder pathway
         for i, module in enumerate(self.up_convs):
-            s = s_dict[5-2-i]
+            s = s_dict[self.depth-2-i]
             if i == 0:
                 x = module(s, z)
             else:

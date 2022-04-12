@@ -355,7 +355,7 @@ def train_net(net,
                         #kl_loss = -0.5 * torch.sum(1 + output[2] - output[1].pow(2) - output[2].exp())
 
                         print("kl loss: ", kl_loss)
-                        scaled_kl = kl_loss*0.01
+                        scaled_kl = kl_loss*1
                         loss_items['kl_loss'].append(scaled_kl.detach().cpu())
 
                         loss = criterion(masked_output, true_masks) 
@@ -425,7 +425,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_4-05_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_4-08_epoch{number}_{alpha}_va059_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 

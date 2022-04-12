@@ -398,7 +398,7 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
     model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)

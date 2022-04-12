@@ -20,29 +20,12 @@ from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from sklearn.metrics import classification_report, confusion_matrix
 import itertools
 
-from unet import UNet_VAE
+from unet import UNet_VAE, UNet_RQ
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
-from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test
+from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test, UNet_VAE_RQ
 from unet import UNet_VAE_RQ_scheme1
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 
-#image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
-#mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
-
-image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
-
-#image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
-#mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
-
-use_cuda = True
-#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-im_type = image_path[17:25]
-segment=True
-alpha = 0.0
-unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
-image_option = "clean" # "clean" or "noisy"
 
 ########
 def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
@@ -63,8 +46,8 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     if np.max(y_true)>2:
         y_true[y_true > 2] = 2
 
-    print("label unique values",np.unique(y_true))
-    print("prediction unique values",np.unique(y_pred))
+    #print("label unique values",np.unique(y_true))
+    #print("prediction unique values",np.unique(y_pred))
 
     # get overall weighted accuracy
     accuracy = accuracy_score(y_true, y_pred, normalize=True, sample_weight=None)
@@ -121,7 +104,7 @@ def rescale(image):
     return map_img
 
 #accept a file path to a jpg, return a torch tensor
-def jpg_to_tensor(filepath=image_path):
+def jpg_to_tensor(filepath):
 
     naip_fn = filepath
     driverTiff = gdal.GetDriverByName('GTiff')
@@ -184,7 +167,7 @@ def predict_img(net,
         img = jpg_to_tensor(filepath)[1] ## noisy image
     img = img.to(device=device, dtype=torch.float32)
 
-    print("img shape: ", img.shape)
+    #print("img shape: ", img.shape)
 
     with torch.no_grad():
         output = net(img)
@@ -192,7 +175,7 @@ def predict_img(net,
         test_output = output
         #print("output shape: ", output.shape)
 
-        if unet_option == 'unet' or unet_option == 'simple_unet' or unet_option == 'unet_jaxony':
+        if unet_option == 'unet' or unet_option == 'unet_jaxony' or unet_option == 'unet_rq':
             #output = output[0]
             output = output.squeeze()
             #output = output
@@ -200,8 +183,7 @@ def predict_img(net,
             #output = output[0][0]
             output = output[0].squeeze()
 
-        print("output squeeze shape: ", output.shape)
-
+        #print("output squeeze shape: ", output.shape)
         #print(torch.unique(output))
 
         if net.num_classes > 1:
@@ -217,7 +199,7 @@ def predict_img(net,
             transforms.ToTensor()
         ])
 
-        print("probs shape: ", probs.shape)
+        #print("probs shape: ", probs.shape)
 
         #print(probs)
 
@@ -230,7 +212,7 @@ def predict_img(net,
         #print(torch.unique(full_mask))
         full_mask = torch.squeeze(full_mask).cpu().numpy()
 
-        print("full mask shape: ",full_mask.shape)
+        #print("full mask shape: ",full_mask.shape)
 
     if net.num_classes == 1:
         return (full_mask > out_threshold).numpy()
@@ -272,10 +254,31 @@ def mask_to_image(mask: np.ndarray):
 if __name__ == '__main__':
     args = get_args()
 
+    #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
+    #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
+
+    image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+    mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+
+    #image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+    #mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
+
+    use_cuda = True
+    #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    im_type = image_path[17:25]
+    segment=True
+    alpha = 1
+    unet_option = 'unet_vae_RQ' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    image_option = "clean" # "clean" or "noisy"
+
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_jaxony':
         net = UNet_test(3)
+    elif unet_option == 'unet_rq':
+        net = UNet_RQ(3, alpha)
+
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3, segment)
     
@@ -289,6 +292,9 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_old_torch(3, segment, alpha = alpha)
         #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
+    elif unet_option == 'unet_vae_RQ':
+        net = UNet_VAE_RQ(3, segment, alpha = alpha)
+
     elif unet_option == 'unet_vae_RQ_scheme3':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
@@ -298,16 +304,16 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
-    if unet_option == 'unet_jaxony':
+    if unet_option == 'unet_jaxony' or unet_option == 'unet_rq':
         net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+        print('Model loaded! ', model_unet_jaxony)
     else:
         net.load_state_dict(torch.load(model_unet_vae, map_location=device))
-
-    logging.info('Model loaded!')
+        print('Model loaded! ', model_unet_vae)
 
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
@@ -353,7 +359,7 @@ if __name__ == '__main__':
         img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
     label = np.array(img_data)
-    print(label.shape)
+    #print(label.shape)
     label = label.reshape((256,256))
 
     classes = ['Tree', 'Grass', 'Concrete']  # 6-Cloud not present

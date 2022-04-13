@@ -204,8 +204,8 @@ class UNet_VAE_RQ(nn.Module):
                 dropout = False
             else:
                 dropout = False
-            #shrink = True if i == 0 else False
-            shrink = True if i < depth-1 else False
+            shrink = True if i == 0 else False
+            #shrink = True if i < depth-1 else False
 
             down_conv = DownConv(ins, outs, segment=self.segment, alpha=self.alpha, pooling=pooling, batchnorm=batchnorm, dropout=dropout, shrink=shrink)
             self.down_convs.append(down_conv)

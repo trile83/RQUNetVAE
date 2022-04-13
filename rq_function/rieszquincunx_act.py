@@ -322,7 +322,7 @@ class RieszQuincunx(nn.Module):
         beta_I, beta_D_I, psi_i, psi_D_i = beta_I.cuda(), beta_D_I.cuda(), psi_i.cuda(), psi_D_i.cuda()
 
         # Riesz Quincunx wavelet:
-        N = 3
+        N = 2
         psi_in, psi_D_in = RieszQuincunxWaveletFuncs(N, psi_i, psi_D_i)
         psi_in, psi_D_in = psi_in.cuda(), psi_D_in.cuda()
 

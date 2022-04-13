@@ -1,16 +1,12 @@
 import argparse
 import logging
 import os
-import rasterio as rio
 #import opencv as cv
-
 import numpy as np
 import torch
 import torch.nn.functional as F
-import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
-import torchvision
 from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 from skimage import exposure
@@ -24,7 +20,7 @@ import pickle
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test
-from unet import UNet_VAE_RQ_scheme1
+from unet import UNet_VAE_RQ_scheme1, UNet_RQ
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 
 
@@ -266,7 +262,7 @@ if __name__ == '__main__':
     im_type = image_path[17:25]
     segment=True
     alpha = 0.5
-    unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    unet_option = 'unet_rq' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
     image_option = 'noisy' # "clean" or "noisy"
 
     if unet_option == 'unet_vae_1':
@@ -275,12 +271,13 @@ if __name__ == '__main__':
         net = UNet_test(3)
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3, segment)
-    
+    elif unet_option == 'unet_rq':
+        net = UNet_RQ(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
     
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(3,alpha)
+        net = UNet_VAE_RQ_old_trainable(3, alpha)
 
     elif unet_option == 'unet_vae_RQ_torch':
         net = UNet_VAE_RQ_old_torch(3, segment, alpha = alpha)
@@ -295,12 +292,12 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
     model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
 
-    if unet_option == 'unet_jaxony':
+    if unet_option == 'unet_jaxony' or unet_option == 'unet_rq':
         net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
     else:
         net.load_state_dict(torch.load(model_unet_vae, map_location=device))
@@ -344,28 +341,28 @@ if __name__ == '__main__':
     # looping 50 times
     loop_num = 50
     pred_masks = []
-    # for i in range(loop_num):
+    for i in range(loop_num):
 
-    #     mask = predict_img(net=net,
-    #                         filepath=image_path,
-    #                         scale_factor=1,
-    #                         out_threshold=0.5,
-    #                         device=device)
+        mask = predict_img(net=net,
+                            filepath=image_path,
+                            scale_factor=1,
+                            out_threshold=0.5,
+                            device=device)
 
-    #     pred_masks.append(mask)
+        pred_masks.append(mask)
 
 
-    #pred_masks = np.array(pred_masks)
+    pred_masks = np.array(pred_masks)
 
-    file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2.pickle'
+    file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_exp2.pickle'
 
     # save pickle file
-    # with open(file_pickle_name, 'wb') as handle:
-    #     pickle.dump(pred_masks, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(file_pickle_name, 'wb') as handle:
+        pickle.dump(pred_masks, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # load pickle file
-    with open(file_pickle_name, 'rb') as input_file:
-        pred_masks = pickle.load(input_file)
+    # with open(file_pickle_name, 'rb') as input_file:
+    #     pred_masks = pickle.load(input_file)
 
     print("predicted masks shape: ", pred_masks.shape)
 

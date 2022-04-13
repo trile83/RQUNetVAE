@@ -269,15 +269,15 @@ if __name__ == '__main__':
     im_type = image_path[17:25]
     segment=True
     alpha = 1
-    unet_option = 'unet_vae_RQ' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
-    image_option = "clean" # "clean" or "noisy"
+    unet_option = 'unet_rq' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    image_option = "noisy" # "clean" or "noisy"
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_jaxony':
         net = UNet_test(3)
     elif unet_option == 'unet_rq':
-        net = UNet_RQ(3, alpha)
+        net = UNet_RQ(3, segment, alpha)
 
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3, segment)

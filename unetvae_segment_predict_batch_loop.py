@@ -9,7 +9,6 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
-import torchvision
 from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
@@ -18,11 +17,10 @@ from collections import defaultdict
 from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from sklearn.metrics import classification_report, confusion_matrix
 import itertools
-
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
-from unet import UNet_VAE_RQ_scheme1, UNet_test
+from unet import UNet_VAE_RQ_scheme1, UNet_test, UNet_RQ, UNet_VAE_RQ
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 from sklearn.metrics import confusion_matrix  
 import numpy as np
@@ -294,7 +292,7 @@ def predict_img(net,
         with torch.no_grad():
             output = net(images)
 
-            if unet_option == 'unet' or unet_option == 'simple_unet' or unet_option == 'unet_jaxony':
+            if unet_option == 'unet' or unet_option == 'unet_rq' or unet_option == 'unet_jaxony':
                 output = output.squeeze()
             else:
                 output = output[0].squeeze()
@@ -362,46 +360,27 @@ if __name__ == '__main__':
     segment=True
     
     sigma_range = np.arange(0.0,0.2,0.01)
-    unet_option = 'unet_vae_RQ_torch' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+    unet_option = 'unet_rq' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
     image_option = "noisy" # "clean" or "noisy"
 
     acc_dict = {}
 
-    if unet_option == 'unet_vae_1':
-        net = UNet_VAE(3)
-    elif unet_option == 'unet_jaxony':
-        net = UNet_test(3)
-    elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3, segment)
-    
-    elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(3,alpha=0)
-
-    elif unet_option == 'unet_vae_RQ_torch':
-        net = UNet_VAE_RQ_old_torch(3, segment, alpha=0)
-        #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
-
-    elif unet_option == 'unet_vae_RQ_scheme3':
-        net = UNet_VAE_RQ_scheme3(3, segment, alpha=0)
-    elif unet_option == 'unet_vae_RQ_scheme1':
-        net = UNet_VAE_RQ_scheme1(3, segment, alpha=0)
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logging.info(f'Using device {device}')
-
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-05_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
-
-    net.to(device=device)
     if unet_option == 'unet_jaxony':
-        net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
-        file_pickle_name = '/home/geoint/tri/github_files/unet_jaxony_dictionary_4-5.pickle'
+        #net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+        file_pickle_name = '/home/geoint/tri/github_files/unet_jaxony_dictionary_4-12.pickle'
         alpha_range= [0]
+    elif unet_option == 'unet_rq':
+        #net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+        file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_dictionary_4-12.pickle'
+        alpha_range = np.arange(0,1.1,0.1)
     else:
-        net.load_state_dict(torch.load(model_unet_vae, map_location=device))
-        file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_4-5.pickle'
+        #net.load_state_dict(torch.load(model_unet_vae, map_location=device))
+        file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_4-12.pickle'
         alpha_range = np.arange(0,1.1,0.1)
         #alpha_range = [0.5]
+
+
+    
 
     logging.info('Model loaded!')
 
@@ -420,6 +399,44 @@ if __name__ == '__main__':
         for alpha in alpha_range:
             alpha = round(alpha,1)
             print("alpha values: ", alpha)
+
+            if unet_option == 'unet_vae_1':
+                net = UNet_VAE(3)
+            elif unet_option == 'unet_jaxony':
+                net = UNet_test(3)
+            elif unet_option == 'unet_rq':
+                net = UNet_RQ(3, segment, alpha)
+            elif unet_option == 'unet_vae_old':
+                net = UNet_VAE_old(3, segment)
+            
+            elif unet_option == 'unet_vae_RQ_allskip_trainable':
+                net = UNet_VAE_RQ_old_trainable(3,alpha)
+
+            elif unet_option == 'unet_vae_RQ_torch':
+                net = UNet_VAE_RQ_old_torch(3, segment, alpha)
+                #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
+            elif unet_option == 'unet_vae_RQ':
+                net = UNet_VAE_RQ(3, segment, alpha = alpha)
+
+            elif unet_option == 'unet_vae_RQ_scheme3':
+                net = UNet_VAE_RQ_scheme3(3, segment, alpha)
+            elif unet_option == 'unet_vae_RQ_scheme1':
+                net = UNet_VAE_RQ_scheme1(3, segment, alpha)
+
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            logging.info(f'Using device {device}')
+
+            model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
+            model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
+
+            net.to(device=device)
+            if unet_option == 'unet_jaxony':
+                net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+            elif unet_option == 'unet_rq':
+                net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+            else:
+                net.load_state_dict(torch.load(model_unet_vae, map_location=device))
+
             acc_dict[sigma][alpha] = {}
 
             preds, imgs, labels = predict_img(net=net,

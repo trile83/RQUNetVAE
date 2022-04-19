@@ -360,7 +360,7 @@ if __name__ == '__main__':
     segment=True
     
     sigma_range = np.arange(0.0,0.2,0.01)
-    unet_option = 'unet_rq' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+    unet_option = 'unet_vae_RQ_torch' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
     image_option = "noisy" # "clean" or "noisy"
 
     acc_dict = {}
@@ -427,7 +427,7 @@ if __name__ == '__main__':
             logging.info(f'Using device {device}')
 
             model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
-            model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
+            model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
             net.to(device=device)
             if unet_option == 'unet_jaxony':

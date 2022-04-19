@@ -21,77 +21,10 @@ from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test
 from unet import UNet_VAE_RQ_scheme1, UNet_RQ
-from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
+from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_5, plot_img_and_mask_4
+from utils.utils import plot_img_and_mask_recon, plot_3D
 
-
-########
-def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
-    """
-    Args:
-        y_true:   2D numpy array with ground truth
-        y_pred:   2D numpy array with predictions (already processed)
-        nclasses: number of classes
-    Returns:
-        numpy array with confusion matrix
-    """
-
-    y_true = y_true.flatten()
-    y_pred = y_pred.flatten()
-
-    y_true = y_true-1
-    y_true[y_true == 3] == 2
-    if np.max(y_true)>2:
-        y_true[y_true > 2] = 2
-
-    print("label unique values",np.unique(y_true))
-    print("prediction unique values",np.unique(y_pred))
-
-    # get overall weighted accuracy
-    accuracy = accuracy_score(y_true, y_pred, normalize=True, sample_weight=None)
-    balanced_accuracy = balanced_accuracy_score(y_true, y_pred, sample_weight=None)
-
-    #print(classification_report(y_true, y_pred))
-
-    ## get confusion matrix
-    con_mat = confusion_matrix(
-        y_true, y_pred
-    )
-
-    if norm:
-        con_mat = np.around(
-            con_mat.astype('float') / con_mat.sum(axis=1)[:, np.newaxis],
-            decimals=2
-        )
-
-    where_are_NaNs = np.isnan(con_mat)
-    con_mat[where_are_NaNs] = 0
-    return con_mat, accuracy, balanced_accuracy
-
-
-def plot_confusion_matrix(cm, class_names=['a', 'b', 'c']):
-    """
-    Returns a matplotlib figure containing the plotted confusion matrix.
-    Args:
-        cm (array, shape = [n, n]): a confusion matrix of integer classes
-        class_names: list with classes for confusion matrix
-    Return: confusion matrix figure.
-    """
-    figure = plt.figure(figsize=(8, 8))
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title("Confusion Matrix")
-    tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=45)
-    plt.yticks(tick_marks, class_names)
-    # Use white text if squares are dark; otherwise black.
-    threshold = 0.55  # cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        color = "white" if cm[i, j] > threshold else "black"
-        plt.text(j, i, cm[i, j], horizontalalignment="center", color=color)
-    plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    #plt.savefig('/home/geoint/tri/nasa_senegal/confusion_matrix/{}_chm_int_cfn_matrix.png'.format(label_name[:-4]))
-    plt.show()
+use_cuda = True
 
 def rescale(image):
     map_img =  np.zeros((256,256,3))
@@ -120,9 +53,10 @@ def jpg_to_tensor(filepath):
         img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
     pil = np.array(img_data)
-    #if im_type != "sentinel":
-    pil=pil/255
-    #pil = (pil - np.min(pil)) / (np.max(pil) - np.min(pil))
+    if im_type != "sentinel":
+        pil=pil/255
+    else:
+        pil = (pil - np.min(pil)) / (np.max(pil) - np.min(pil))
 
 
     row,col,ch= pil.shape
@@ -137,7 +71,7 @@ def jpg_to_tensor(filepath):
 
     return tensor.view([1]+list(tensor.shape)), noisy_tensor.view([1]+list(noisy_tensor.shape))
 
-#accept a torch tensor, convert it to a jpg at a certain path
+# accept a torch tensor, convert it to a jpg at a certain path
 def tensor_to_jpg(tensor):
     #tensor = tensor.view(tensor.shape[1:])
     tensor = tensor.squeeze(0)
@@ -152,17 +86,12 @@ def tensor_to_jpg(tensor):
 
 #predict image
 def predict_img(net,
-                filepath,
+                img,
+                unet_option,
                 device,
                 scale_factor=1,
                 out_threshold=0.5):
     net.eval()
-
-    if image_option=='clean':
-        img = jpg_to_tensor(filepath)[0] ## clean image
-    elif image_option=='noisy':
-        img = jpg_to_tensor(filepath)[1] ## noisy image
-    img = img.to(device=device, dtype=torch.float32)
 
     print("img shape: ", img.shape)
 
@@ -172,7 +101,7 @@ def predict_img(net,
         test_output = output
         #print("output shape: ", output.shape)
 
-        if unet_option == 'unet' or unet_option == 'simple_unet' or unet_option == 'unet_jaxony':
+        if unet_option == 'unet_rq' or unet_option == 'unet_jaxony':
             #output = output[0]
             output = output.squeeze()
             #output = output
@@ -197,22 +126,57 @@ def predict_img(net,
             transforms.ToTensor()
         ])
 
-        print("probs shape: ", probs.shape)
-
         #print(probs)
 
         probs = probs.detach().cpu()
+        print("probs shape: ", probs.shape)
         full_mask = torch.argmax(probs, dim=0)
-
-        #print(torch.unique(full_mask))
         full_mask = torch.squeeze(full_mask).cpu().numpy()
 
-        print("full mask shape: ",full_mask.shape)
+        #print("full mask shape: ",full_mask.shape)
 
     if net.num_classes == 1:
         return (full_mask > out_threshold).numpy()
     else:
-        return full_mask
+        return probs  #full_mask
+
+def get_f_seg(image,label):
+
+    f_seg = np.zeros((256,256,3))
+    y = np.zeros((256,256,3))
+    m = np.zeros((3,3)) # number of channels x number of class
+    for value in np.unique(label):
+        itemindex = np.ma.where(label == value, 1, 0)
+        for i in range(3): # number of channel
+            y[:,:,i] = image[:,:,i]*itemindex
+            m[i,value] = np.sum(y[:,:,i])/np.sum(itemindex)
+            f_seg[:,:,i] = f_seg[:,:,i] + m[i,value]*itemindex
+
+    return f_seg
+
+def get_f_seg_mode(preds): # preds have 3x256x256 dim
+    f_seg_mode = np.zeros((256,256))
+    for i in range(preds.shape[1]):
+        for j in range(preds.shape[2]):
+            mode_pix = np.bincount(preds[:,i,j]).argmax()
+            f_seg_mode[i,j]=mode_pix
+    return f_seg_mode
+
+def get_pix_acc(pred, label):
+    accuracy = []
+    for index in range(pred.shape[1]):
+        label_pix = label[index]
+        count = 0
+        for j in range(pred.shape[0]):
+            pred_pix = pred[j, index]
+            if pred_pix == label_pix:
+                count += 1
+
+        accuracy.append(count/loop_num)
+
+    accuracy = np.array(accuracy)
+
+    return accuracy
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
@@ -229,41 +193,32 @@ def get_args():
     return parser.parse_args()
 
 
-def get_output_filenames(args):
-    def _generate_name(fn):
-        split = os.path.splitext(fn)
-        return f'{split[0]}_OUT{split[1]}'
-
-    return args.output or list(map(_generate_name, args.input))
-
-def mask_to_image(mask: np.ndarray):
-    if mask.ndim == 2:
-        return Image.fromarray((mask * 255).astype(np.uint8))
-    elif mask.ndim == 3:
-        #return Image.fromarray((np.argmax(mask, axis=0) * 255 / mask.shape[0]).astype(np.uint8))
-        return (np.argmax(mask, axis=0) * 255 / mask.shape[0]).astype(np.uint8)
-
-
 if __name__ == '__main__':
     args = get_args()
 
     #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
     #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-    #image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-    #mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+    image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+    mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
-    image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
-    mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
+    #image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+    #mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
-    use_cuda = True
-    #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     im_type = image_path[17:25]
     segment=True
-    alpha = 0.5
-    unet_option = 'unet_rq' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
-    image_option = 'noisy' # "clean" or "noisy"
+    alpha = 0.1
+    unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    image_option = 'clean' # "clean" or "noisy"
+
+    if image_option=='clean':
+        image = jpg_to_tensor(image_path)[0] ## clean image
+    elif image_option=='noisy':
+        image = jpg_to_tensor(image_path)[1] ## noisy image
+    image = image.to(device=device, dtype=torch.float32)
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
@@ -280,7 +235,7 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_old_trainable(3, alpha)
 
     elif unet_option == 'unet_vae_RQ_torch':
-        net = UNet_VAE_RQ_old_torch(3, segment, alpha = alpha)
+        net = UNet_VAE_RQ_old_torch(3, segment, alpha)
         #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
 
     elif unet_option == 'unet_vae_RQ_scheme3':
@@ -288,7 +243,7 @@ if __name__ == '__main__':
     elif unet_option == 'unet_vae_RQ_scheme1':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
@@ -307,12 +262,12 @@ if __name__ == '__main__':
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
 
-    ## get image
-    if image_option=='clean':
-        img = jpg_to_tensor(image_path)[0]
-    else:
-        img = jpg_to_tensor(image_path)[1]
-    img = tensor_to_jpg(img)
+    ## get image for visualization
+    # if image_option=='clean':
+    #     sat_image = jpg_to_tensor(image_path)[0]
+    # else:
+    #     sat_image = jpg_to_tensor(image_path)[1]
+    # sat_image = tensor_to_jpg(sat_image)
 
     ## get ground truth label
     naip_fn = mask_true_path
@@ -338,87 +293,143 @@ if __name__ == '__main__':
     if np.max(label)>2:
         label[label > 2] = 2
 
+    #print(np.unique(label))
+
+    rgb_im = tensor_to_jpg(image)
+    print("rgb shape: ", rgb_im.shape)
+
+    f_seg_gt = get_f_seg(rgb_im, label)
+    print("f_seg shape: ", f_seg_gt.shape)
+
+    #f_seg_gt = rescale(f_seg_gt)
+
+    print(np.unique(f_seg_gt))
+
+    # visualize f_seg_gt
+    plot_img_and_mask_5(rgb_im, label, f_seg_gt)
+
+
+
     # looping 50 times
     loop_num = 50
-    pred_masks = []
-    for i in range(loop_num):
+    # pred_masks = []
+    # pred_probs = torch.zeros((loop_num,3,256,256))
+    # for i in range(loop_num):
 
-        mask = predict_img(net=net,
-                            filepath=image_path,
-                            scale_factor=1,
-                            out_threshold=0.5,
-                            device=device)
+    #     probs = predict_img(net=net,
+    #                         img=image,
+    #                         unet_option=unet_option,
+    #                         scale_factor=1,
+    #                         out_threshold=0.5,
+    #                         device=device)
 
-        pred_masks.append(mask)
-
-
-    pred_masks = np.array(pred_masks)
-
-    file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_exp2.pickle'
-
-    # save pickle file
-    with open(file_pickle_name, 'wb') as handle:
-        pickle.dump(pred_masks, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # load pickle file
-    # with open(file_pickle_name, 'rb') as input_file:
-    #     pred_masks = pickle.load(input_file)
-
-    print("predicted masks shape: ", pred_masks.shape)
-
-
-    #for i in range(loop_num):
-        #plot_img_and_mask_3(img, label, pred_masks[i], 0)
-
-
-    #out_files = 'out/predict_va_softshrink_all_0.02.tif'
-    # out_files = 'out/predict_va_unet_epoch40_new.tif'
-    # out_filename = out_files
-    # logging.info(f'Mask saved to {out_files}')
+    #     pred_probs[i,:,:,:] = probs
         
+    # #pred_probs = np.array(pred_probs)
+
+    # print("pred probs shape: ", pred_probs.shape)
+
+    # mean_probs = torch.zeros(probs.shape)
+    # for i in range(3):
+    #     mean_probs[i,:,:] = torch.mean(pred_probs[:,i,:,:])
+
+    # mask = torch.argmax(mean_probs, dim=0)
+    # mask = torch.squeeze(mask).cpu().numpy()
+    # pred_masks.append(mask)
+
+    # pred_masks = np.array(pred_masks)
+
+    # #file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_exp2.pickle'
+    # file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_mean_exp2.pickle'
+
+    # # save pickle file
+    # with open(file_pickle_name, 'wb') as handle:
+    #     pickle.dump(pred_masks, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_exp2.pickle'
+    # # load pickle file
+    # with open(file_pickle_name, 'rb') as input_file:
+    #     pred_masks_unetrq = pickle.load(input_file)
+
+    #pred_masks_unetrq = pred_masks
+
+    # print("unet rq shape: ", pred_masks_unetrq.shape)
+
+    #print("predicted masks shape: ", pred_masks_unetrq.shape)
+
+    file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2.pickle'
+    # load pickle file
+    with open(file_pickle_name, 'rb') as input_file:
+        pred_masks_unetvaerq = pickle.load(input_file)
+
+    print("unet vae rq shape: ", pred_masks_unetvaerq.shape)
+
+    # get f_seg for predictions results:
+    # f_seg_preds = []
+    # for i in range(loop_num):
+    #     #plot_img_and_mask_3(img, label, pred_masks[i], 0)
+    #     f_seg_pr = get_f_seg(rgb_im, pred_masks_unetvaerq[i,:,:])
+    #     f_seg_preds.append(f_seg_pr)
+    # f_seg_preds = np.array(f_seg_preds) # 50,256,256,3
+
+    # print("f_seg_preds: ", f_seg_preds.shape)
+
+    # get f_segmode
+    f_segmode = get_f_seg_mode(pred_masks_unetvaerq)
+    plot_img_and_mask_3(rgb_im, label, f_segmode)
+
 
     #####
     # get 1 line of pixel in the ground truth
     index_line = 127
 
     label_line_arr = label[index_line,:,]
-    print(label_line_arr.shape)
-    pred_line_arr = []
-    # for i in range(loop_num):
-    #     pred_line_arr.append(pred_masks[i,index_line,:])
 
-    pred_line_arr = pred_masks[:,index_line,:]
+    pred_line_unetvaerq_arr = pred_masks_unetvaerq[:,index_line,:]
 
-    print(pred_line_arr.shape)
+    # get index line for segmented image (new definition) 256x256x3
+    # pred_lines = f_seg_preds[:,index_line,:]
+
+
+    # get accuracy
+    accuracy = get_pix_acc(pred_line_unetvaerq_arr, label_line_arr)
+
+
+    # get f line at index line
+    rgb_line = rgb_im[index_line,:,:]
+    pred_line_gt = f_seg_gt[index_line,:,:]
+    # for i in range(f_seg_preds.shape[2]):
+    #     f_seg_preds[:,:,i]
+    # plot_3D(rgb_line, pred_lines)
+
+
+    # change class number to class name for categorical display
+    label_line_arr = label_line_arr.astype(str)
+    label_line_arr[label_line_arr == '0'] = "Tree"
+    label_line_arr[label_line_arr == '1'] = "Grass"
+    label_line_arr[label_line_arr == '2'] = "Concrete"
+
+    #print("pred mean line: ", pred_line_unetvaerq_arr.shape)
+
+    plt.rcParams["figure.figsize"] = [20, 10]
+    #plt.rcParams["figure.autolayout"] = True
+
+    ax1 = plt.subplot()
+    ax1.set_ylabel('class number')
+    l1, = ax1.plot(label_line_arr, label='train label', color='red')
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('accuracy')
+    l2, = ax2.plot(accuracy, 'bo')
+
+    plt.legend([l1, l2], ['train label', 'accuracy'])
     
-    #pred_line_np = np.array(pred_line_arr)
-    mean_pred_line = np.mean(pred_line_arr, axis=0)
-    std_pred_line = np.std(pred_line_arr, axis=0)
-
-    plt.plot(label_line_arr, label='train label')
-    # for index in range(loop_num):
-    #     plt.scatter(range(256), pred_line_arr[index])
-    plt.plot(range(256), mean_pred_line, label = 'avg predicted value')
-    plt.fill_between(range(256), mean_pred_line-std_pred_line, mean_pred_line+std_pred_line, alpha=0.5)
-    plt.legend()
+    # plt.plot(range(256), pred_line_unetvaerq_arr, label=('U_mean'))
+    # for index in range(pred_line_unetvaerq_arr.shape[0]):
+    #     plt.plot(range(256), pred_line_unetvaerq_arr[index], '--')
+    # plt.plot(label_line_arr, label='train label', color='red', linewidth=2)
+    # plt.plot(range(256), mean_pred_vaerq_line, label = 'RQUnet-VAE')
+    # plt.fill_between(range(256), mean_pred_vaerq_line-std_pred_vaerq_line, mean_pred_vaerq_line+std_pred_vaerq_line, alpha=0.5)
+    # plt.plot(range(256), mean_pred_rq_line, label = 'RQUnet')
+    # plt.fill_between(range(256), mean_pred_rq_line-std_pred_rq_line, mean_pred_rq_line+std_pred_rq_line, alpha=0.5)
+    # plt.legend()
     plt.show()
-    
-
-    ##########
-
-    # classes = ['Tree', 'Grass', 'Concrete']  # 6-Cloud not present
-    # colors = ['forestgreen', 'lawngreen', 'orange']
-    # colormap = pltc.ListedColormap(colors)
-
-    # cnf_matrix, accuracy, balanced_accuracy = confusion_matrix_func(
-    #         y_true=label, y_pred=mask, nclasses=len(classes), norm=True
-    #     )
-
-    # print("Overall Accuracy: ", accuracy)
-    # print("Balanced Accuracy: ", balanced_accuracy)
-    # plot_confusion_matrix(cnf_matrix, class_names=classes)
-    # if im_type == 'sentinel':
-    #     plot_img_and_mask_4(img, label, mask)
-    # else:
-    #     plot_img_and_mask_3(img, label, mask, balanced_accuracy)
-    #plot_img_and_mask_2(img, mask)

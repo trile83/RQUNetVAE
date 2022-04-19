@@ -507,7 +507,7 @@ class UpConv(nn.Module):
 class UNet_VAE_RQ_old_torch(nn.Module):
     def __init__(self, num_classes, segment, alpha=0.0, in_channels=3, depth=5, 
                  start_filts=64, up_mode='upsample', 
-                 merge_mode='concat', enc_out_dim=1024, latent_dim=100):
+                 merge_mode='concat', enc_out_dim=1024, latent_dim=64):
         """
         Arguments:
             in_channels: int, number of channels in the input tensor.
@@ -564,8 +564,8 @@ class UNet_VAE_RQ_old_torch(nn.Module):
                 dropout = False
             else:
                 dropout = False
-            #shrink = True if i == 0 else False
-            shrink = True if i < depth-1 else False
+            shrink = True if i == 0 else False
+            #shrink = True if i < depth-1 else False
 
             down_conv = DownConv(ins, outs, segment=self.segment, alpha=self.alpha, pooling=pooling, batchnorm=batchnorm, dropout=dropout, shrink=shrink)
             self.down_convs.append(down_conv)

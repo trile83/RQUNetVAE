@@ -329,7 +329,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_{alpha}_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_4-18_epoch{number}_{alpha}_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -353,12 +353,13 @@ if __name__ == '__main__':
     # n_classes is the number of probabilities you want to get per pixel
     
     alpha = 0.0
+    segment = False
     unet_option = "unet_vae_old"
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3)
+        net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
     elif unet_option == 'unet_vae_RQ_allskip_trainable':

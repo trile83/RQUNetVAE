@@ -19,7 +19,7 @@ def plot_img_and_mask(img, mask):
     plt.xticks([]), plt.yticks([])
     plt.show()
 
-def plot_img_and_mask_3(image, mask_true, mask_pred, accuracy):
+def plot_img_and_mask_3(image, mask_true, mask_pred, accuracy=0):
     #classes = ['Tree', 'Grass', 'Soil', 'Concrete'] # 6-Cloud not present
     #colors = ['forestgreen', 'lawngreen', 'brown', 'orange']
 
@@ -27,8 +27,8 @@ def plot_img_and_mask_3(image, mask_true, mask_pred, accuracy):
     colors = ['forestgreen', 'lawngreen', 'orange']
     colormap = pltc.ListedColormap(colors)
 
-    mask_true[mask_true == 0]=1
-    mask_true = mask_true-1
+    # mask_true[mask_true == 0]=1
+    # mask_true = mask_true-1
 
     #mask_pred[mask_pred==1]==0
     #mask_pred[mask_pred==2]==1
@@ -111,6 +111,30 @@ def plot_img_and_mask_4(image, mask_true, mask_pred):
     # put those patched as legend-handles into the legend
     plt.show()
 
+def plot_img_and_mask_5(image, mask_true, mask_pred):
+    #classes = ['Tree', 'Grass', 'Soil', 'Concrete'] # 6-Cloud not present
+    #colors = ['forestgreen', 'lawngreen', 'brown', 'orange']
+
+    classes = ['Tree', 'Grass','Concrete'] # 6-Cloud not present
+    colors = ['forestgreen', 'lawngreen', 'orange']
+    colormap = pltc.ListedColormap(colors)
+
+    #mask_true[mask_true == 1] = 3
+    #mask_true = mask_true-2
+
+     # lets plot some information here
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(60, 60))
+    axes[0].title.set_text("Image")
+    axes[0].imshow(image)
+    axes[1].title.set_text("Ground Truth")
+    axes[1].imshow(mask_true, cmap=colormap)
+    axes[2].title.set_text("Prediction")
+    axes[2].imshow(mask_pred)
+    fig.tight_layout()
+    # create a patch (proxy artist) for every color 
+    # put those patched as legend-handles into the legend
+    plt.show()
+
 def plot_img_and_mask_recon(img, mask):
     plt.figure(figsize=(20,20))
     plt.subplot(1,2,1)
@@ -120,4 +144,23 @@ def plot_img_and_mask_recon(img, mask):
     plt.title("Reconstruction")
     #values = np.unique(y.ravel())
     plt.imshow(mask)
+    plt.show()
+
+
+def plot_3D(image, preds):
+
+    ax = plt.axes(projection='3d')
+
+    # Data for a three-dimensional line
+    zline = image[:,0]
+    xline = image[:,1]
+    yline = image[:,2]
+    ax.plot3D(xline, yline, zline, 'gray')
+
+    ax1 = plt.axes(projection='3d')
+    #for i in range(preds.shape[2]):
+    z = preds[:,:,0]
+    x = preds[:,:,1]
+    y = preds[:,:,2]
+    ax1.scatter3D(x, y, z, 'gray')
     plt.show()

@@ -16,6 +16,7 @@ from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from sklearn.metrics import classification_report, confusion_matrix
 import itertools
 import pickle
+from numpy import linalg as LA
 
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
@@ -93,14 +94,12 @@ def predict_img(net,
                 out_threshold=0.5):
     net.eval()
 
-    print("img shape: ", img.shape)
-
+    # print("img shape: ", img.shape)
     with torch.no_grad():
+        
         output = net(img)
-
         test_output = output
         #print("output shape: ", output.shape)
-
         if unet_option == 'unet_rq' or unet_option == 'unet_jaxony':
             #output = output[0]
             output = output.squeeze()
@@ -138,7 +137,7 @@ def predict_img(net,
     if net.num_classes == 1:
         return (full_mask > out_threshold).numpy()
     else:
-        return probs  #full_mask
+        return full_mask
 
 def get_f_seg(image,label):
 
@@ -150,17 +149,37 @@ def get_f_seg(image,label):
         for i in range(3): # number of channel
             y[:,:,i] = image[:,:,i]*itemindex
             m[i,value] = np.sum(y[:,:,i])/np.sum(itemindex)
-            f_seg[:,:,i] = f_seg[:,:,i] + m[i,value]*itemindex
+            f_seg[:,:,i] += m[i,value]*itemindex
 
     return f_seg
 
+# get f_segmode
 def get_f_seg_mode(preds): # preds have 3x256x256 dim
     f_seg_mode = np.zeros((256,256))
     for i in range(preds.shape[1]):
         for j in range(preds.shape[2]):
-            mode_pix = np.bincount(preds[:,i,j]).argmax()
+            mode_pix = np.argmax(np.bincount(preds[:,i,j])) # get the label with the highest count
             f_seg_mode[i,j]=mode_pix
-    return f_seg_mode
+    return f_seg_mode.astype(np.uint8)
+
+# get covariance matrix
+def get_covar_mat(f_seg_preds, f_segmode_seg):
+    # f_seg_preds has dimension of (50 x 256 x 256 x 3)
+    # f_segmode_seg has dimension of (256 x 256 x 3)
+
+    V = {}
+    for i in range(f_seg_preds.shape[1]):
+        V[i] = {}
+        for j in range(f_seg_preds.shape[2]):
+            V[i][j] = np.zeros((3,3))
+            b = f_segmode_seg[i,j,:].reshape((3,1))
+            for n in range(f_seg_preds.shape[0]):
+                a = f_seg_preds[n,i,j,:].reshape((3,1))
+                #A = np.matmul((a-b),np.transpose(a-b))
+                A = (a-b) @ np.transpose(a-b)
+
+                V[i][j] += A
+    return V
 
 def get_pix_acc(pred, label):
     accuracy = []
@@ -171,11 +190,8 @@ def get_pix_acc(pred, label):
             pred_pix = pred[j, index]
             if pred_pix == label_pix:
                 count += 1
-
         accuracy.append(count/loop_num)
-
     accuracy = np.array(accuracy)
-
     return accuracy
 
 def get_args():
@@ -199,18 +215,17 @@ if __name__ == '__main__':
     #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
     #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-    image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-    mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+    #image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+    #mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
-    #image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
-    #mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
+    image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+    mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     im_type = image_path[17:25]
     segment=True
-    alpha = 0.1
+    alpha = 0.5
     unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
     image_option = 'clean' # "clean" or "noisy"
 
@@ -262,13 +277,6 @@ if __name__ == '__main__':
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
 
-    ## get image for visualization
-    # if image_option=='clean':
-    #     sat_image = jpg_to_tensor(image_path)[0]
-    # else:
-    #     sat_image = jpg_to_tensor(image_path)[1]
-    # sat_image = tensor_to_jpg(sat_image)
-
     ## get ground truth label
     naip_fn = mask_true_path
     driverTiff = gdal.GetDriverByName('GTiff')
@@ -293,90 +301,94 @@ if __name__ == '__main__':
     if np.max(label)>2:
         label[label > 2] = 2
 
-    #print(np.unique(label))
+    # print("unique label class: ", np.unique(label))
+    # print("label data type: ", label.dtype)
 
     rgb_im = tensor_to_jpg(image)
-    print("rgb shape: ", rgb_im.shape)
+    #print("rgb shape: ", rgb_im.shape)
 
-    f_seg_gt = get_f_seg(rgb_im, label)
-    print("f_seg shape: ", f_seg_gt.shape)
+    # f_seg_gt = get_f_seg(rgb_im, label)
+    #print("f_seg shape: ", f_seg_gt.shape)
 
     #f_seg_gt = rescale(f_seg_gt)
-
-    print(np.unique(f_seg_gt))
+    #print(np.unique(f_seg_gt))
 
     # visualize f_seg_gt
-    plot_img_and_mask_5(rgb_im, label, f_seg_gt)
+    # plot_img_and_mask_5(rgb_im, label, f_seg_gt)
 
-
-
-    # looping 50 times
+    # looping 50 times for predictions
     loop_num = 50
     # pred_masks = []
-    # pred_probs = torch.zeros((loop_num,3,256,256))
     # for i in range(loop_num):
 
-    #     probs = predict_img(net=net,
+    #     mask = predict_img(net=net,
     #                         img=image,
     #                         unet_option=unet_option,
     #                         scale_factor=1,
     #                         out_threshold=0.5,
     #                         device=device)
 
-    #     pred_probs[i,:,:,:] = probs
-        
-    # #pred_probs = np.array(pred_probs)
-
-    # print("pred probs shape: ", pred_probs.shape)
-
-    # mean_probs = torch.zeros(probs.shape)
-    # for i in range(3):
-    #     mean_probs[i,:,:] = torch.mean(pred_probs[:,i,:,:])
-
-    # mask = torch.argmax(mean_probs, dim=0)
-    # mask = torch.squeeze(mask).cpu().numpy()
-    # pred_masks.append(mask)
+    #     pred_masks.append(mask)
 
     # pred_masks = np.array(pred_masks)
 
-    # #file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_exp2.pickle'
-    # file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_mean_exp2.pickle'
+    # file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2_4-21.pickle'
+    # # file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_mean_exp2.pickle'
 
-    # # save pickle file
+    # # save pickle file for 50 predictions
     # with open(file_pickle_name, 'wb') as handle:
     #     pickle.dump(pred_masks, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_exp2.pickle'
-    # # load pickle file
-    # with open(file_pickle_name, 'rb') as input_file:
-    #     pred_masks_unetrq = pickle.load(input_file)
+    # # save noisy image
+    # file_pickle_name = '/home/geoint/tri/github_files/exp2_noisy_im_4-21.pickle'
+    # with open(file_pickle_name, 'wb') as handle:
+    #     pickle.dump(rgb_im, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    #pred_masks_unetrq = pred_masks
 
-    # print("unet rq shape: ", pred_masks_unetrq.shape)
-
-    #print("predicted masks shape: ", pred_masks_unetrq.shape)
-
-    file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2.pickle'
+    file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2_4-21.pickle'
     # load pickle file
     with open(file_pickle_name, 'rb') as input_file:
         pred_masks_unetvaerq = pickle.load(input_file)
 
     print("unet vae rq shape: ", pred_masks_unetvaerq.shape)
 
-    # get f_seg for predictions results:
-    # f_seg_preds = []
-    # for i in range(loop_num):
-    #     #plot_img_and_mask_3(img, label, pred_masks[i], 0)
-    #     f_seg_pr = get_f_seg(rgb_im, pred_masks_unetvaerq[i,:,:])
-    #     f_seg_preds.append(f_seg_pr)
-    # f_seg_preds = np.array(f_seg_preds) # 50,256,256,3
+    # save noisy image
+    file_pickle_name = '/home/geoint/tri/github_files/exp2_noisy_im_4-21.pickle'
+    with open(file_pickle_name, 'rb') as input_file:
+        noisy_im = pickle.load(input_file)
 
-    # print("f_seg_preds: ", f_seg_preds.shape)
+
+    # get f_seg for predictions results:
+    f_seg_preds = []
+    for i in range(loop_num):
+        f_seg_pr = get_f_seg(rgb_im, pred_masks_unetvaerq[i,:,:])
+        f_seg_preds.append(f_seg_pr)
+    f_seg_preds = np.array(f_seg_preds) # 50,256,256,3
+
+    print("f_seg_preds: ", f_seg_preds.shape)
+    # plot_img_and_mask_5(noisy_im, label, f_seg_preds[0])
 
     # get f_segmode
     f_segmode = get_f_seg_mode(pred_masks_unetvaerq)
-    plot_img_and_mask_3(rgb_im, label, f_segmode)
+    # plot_img_and_mask_3(rgb_im, label, f_segmode)
+    
+
+    f_segmode_seg = get_f_seg(rgb_im, f_segmode)
+    print("f_segmode_seg: ", f_segmode_seg.shape)
+    #plot_img_and_mask_5(noisy_im, f_segmode, f_segmode_seg)
+
+    # get covariance matrix
+    var_mat = get_covar_mat(f_seg_preds, f_segmode_seg)
+
+    varmat_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_varmat.pickle'
+    # load pickle file
+    with open(varmat_pickle_name, 'wb') as input_file:
+        pickle.dump(var_mat, input_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    print(var_mat[1][2])
+
+    w, v = LA.eig(var_mat[100][100])
+    print("eigenvalues: ", w)
 
 
     #####
@@ -397,7 +409,7 @@ if __name__ == '__main__':
 
     # get f line at index line
     rgb_line = rgb_im[index_line,:,:]
-    pred_line_gt = f_seg_gt[index_line,:,:]
+    #pred_line_gt = f_seg_gt[index_line,:,:]
     # for i in range(f_seg_preds.shape[2]):
     #     f_seg_preds[:,:,i]
     # plot_3D(rgb_line, pred_lines)

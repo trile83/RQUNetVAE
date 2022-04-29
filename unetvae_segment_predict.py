@@ -23,7 +23,7 @@ import itertools
 from unet import UNet_VAE, UNet_RQ
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test, UNet_VAE_RQ
-from unet import UNet_VAE_RQ_scheme1
+from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 from utils.utils import plot_img_and_mask_recon
 
@@ -269,44 +269,38 @@ if __name__ == '__main__':
 
     im_type = image_path[17:25]
     segment=True
-    alpha = 0.5
-    unet_option = 'unet_vae_RQ' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
-    image_option = "noisy" # "clean" or "noisy"
+    alpha = 0.0
+    unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    image_option = "clean" # "clean" or "noisy"
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_jaxony':
         net = UNet_test(3)
-    elif unet_option == 'unet_rq':
-        net = UNet_RQ(3, segment, alpha)
-
     elif unet_option == 'unet_vae_old':
         net = UNet_VAE_old(3, segment)
-    
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
-    
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
         net = UNet_VAE_RQ_old_trainable(3,alpha)
-
     elif unet_option == 'unet_vae_RQ_torch':
         net = UNet_VAE_RQ_old_torch(3, segment, alpha)
         #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
-
     elif unet_option == 'unet_vae_RQ':
         net = UNet_VAE_RQ(3, segment, alpha = alpha)
-
     elif unet_option == 'unet_vae_RQ_scheme3':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_scheme2':
+        net = UNet_VAE_RQ_scheme2(3, segment, alpha)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
     model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
     if unet_option == 'unet_jaxony' or unet_option == 'unet_rq':

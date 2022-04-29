@@ -262,6 +262,8 @@ class UNet_VAE_old(nn.Module):
         #     x, before_pool = module(x)
         #     encoder_outs.append(before_pool)
 
+        print("x shape: ", x.shape)
+
         s_dict = {}  
         for i, module in enumerate(self.down_convs):
             x, s = module(x)

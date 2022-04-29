@@ -3,20 +3,18 @@ import logging
 import os
 import rasterio as rio
 from skimage import exposure
-
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
-import torchvision
 from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
-from unet import UNet_VAE_RQ_scheme1
+from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
 #image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
@@ -27,9 +25,10 @@ mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 im_type = image_path[30:38]
+print('image type: ', im_type)
 segment=False
 alpha = 0.1
-unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_RQ_scheme2' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
 image_option = "clean" # "clean" or "noisy"
 
 ##################################
@@ -73,9 +72,11 @@ def jpg_to_tensor(filepath=image_path):
     pil = np.array(img_data)
     if im_type != "sentinel":
         pil=pil/255
+    else:
+        pil=(pil - np.min(pil)) / (np.max(pil) - np.min(pil))
 
     row,col,ch= pil.shape
-    sigma = 0.002 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
+    sigma = 0.01 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
     transform_tensor = transforms.ToTensor()
@@ -92,6 +93,7 @@ def tensor_to_jpg(tensor):
         tensor = tensor.cpu()
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
+    #pil = rescale(pil)
     pil = rescale_truncate(pil)
     return pil
 
@@ -125,7 +127,6 @@ def predict_img(net,
         else:
             output = output[3]
 
-    
 
     return output.cpu()
 
@@ -170,12 +171,15 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_scheme2':
+        net = UNet_VAE_RQ_scheme2(3, segment, alpha)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
     model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-18_epoch10_0.0_recon.pth'
+    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_sentinel_4-28_recon.pth'
 
     net.to(device=device)
     net.load_state_dict(torch.load(model_saved, map_location=device))

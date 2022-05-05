@@ -164,3 +164,23 @@ def plot_3D(image, preds):
     y = preds[:,:,2]
     ax1.scatter3D(x, y, z, 'gray')
     plt.show()
+
+def plot_accu_map(image, mask_true, accu_map):
+    classes = ['Tree', 'Grass','Concrete'] # 6-Cloud not present
+    colors = ['forestgreen', 'lawngreen', 'orange']
+    colormap = pltc.ListedColormap(colors)
+
+     # lets plot some information here
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(30, 30))
+    axes[0,0].title.set_text("Image")
+    im0=axes[0,0].imshow(image)
+    axes[0,1].title.set_text("Ground Truth")
+    im1=axes[0,1].imshow(mask_true, cmap=colormap)
+    axes[1,0].title.set_text("Image")
+    im2=axes[1,0].imshow(image)
+    axes[1,1].title.set_text("Accuracy Map ")
+    im3=axes[1,1].imshow(accu_map, cmap="coolwarm", interpolation='nearest')
+    fig.colorbar(im3)
+    fig.tight_layout()
+    # put those patched as legend-handles into the legend
+    plt.show()

@@ -11,3 +11,4 @@ from .unet_vae_RQ_scheme1 import UNet_VAE_RQ_scheme1
 from .unet_vae_RQ_scheme2 import UNet_VAE_RQ_scheme2
 from .unet_rq import UNet_RQ
 from .unet_vae_rq_activation import UNet_VAE_RQ
+from .stacked_unet import UNet_VAE_Stacked

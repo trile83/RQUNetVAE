@@ -14,21 +14,21 @@ import matplotlib.pyplot as plt
 from unet import UNet_VAE
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
-from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2
+from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2, UNet_VAE_Stacked
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
-#image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
-#mask_true_path = '/home/geoint/tri/github_files/test_label/number13458.TIF'
-image_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
-mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
+image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
+mask_true_path = '/home/geoint/tri/github_files/test_label/number13458.TIF'
+#image_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
+#mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 im_type = image_path[30:38]
 print('image type: ', im_type)
 segment=False
-alpha = 0.1
-unet_option = 'unet_vae_RQ_scheme2' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
+alpha = 0.0
+unet_option = 'unet_vae_stacked' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
 image_option = "clean" # "clean" or "noisy"
 
 ##################################
@@ -118,6 +118,8 @@ def predict_img(net,
 
         if unet_option == 'unet':
             output = output
+        elif unet_option=='unet_vae_stacked':
+            output = output[1]
         elif unet_option == 'unet_vae_RQ_scheme3':
             err = output[5]
             output = output[3]
@@ -156,6 +158,10 @@ def get_output_filenames(args):
 
 if __name__ == '__main__':
     args = get_args()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-18_epoch10_0.0_recon.pth'
+    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_sentinel_4-28_recon.pth'
+
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
@@ -173,8 +179,10 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme2':
         net = UNet_VAE_RQ_scheme2(3, segment, alpha)
+    elif unet_option == 'unet_vae_stacked':
+        net = UNet_VAE_Stacked(3, segment, device, model_saved)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
@@ -182,7 +190,7 @@ if __name__ == '__main__':
     model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_sentinel_4-28_recon.pth'
 
     net.to(device=device)
-    net.load_state_dict(torch.load(model_saved, map_location=device))
+    #net.load_state_dict(torch.load(model_saved, map_location=device))
 
     logging.info('Model loaded!')
     logging.info(f'\nPredicting image {image_path} ...')

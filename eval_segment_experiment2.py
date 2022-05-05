@@ -4,6 +4,7 @@ import os
 from xmlrpc.client import DateTime
 #import opencv as cv
 import numpy as np
+import scipy.stats as stats
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -25,7 +26,7 @@ from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_ol
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test
 from unet import UNet_VAE_RQ_scheme1, UNet_RQ
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_5, plot_img_and_mask_4
-from utils.utils import plot_img_and_mask_recon, plot_3D
+from utils.utils import plot_img_and_mask_recon, plot_accu_map
 
 use_cuda = True
 
@@ -139,7 +140,7 @@ def predict_img(net,
     if net.num_classes == 1:
         return (full_mask > out_threshold).numpy()
     else:
-        return full_mask
+        return full_mask, probs
 
 def get_f_seg(image,label):
 
@@ -186,43 +187,23 @@ def get_covar_mat(f_seg_preds, f_seg_mode):
                 #A = np.matmul((a-b),np.transpose(a-b))
                 A = (a-b) @ np.transpose(a-b)
                 V[i][j] += A
-            
-            # b = mean[i,j,:]
-            # for n in range(50):
-            #     if n == 1:
-            #         a = f_seg_preds[n,i,j,:]
-            #         V[i][j] += (a[:,None]-b[:,None]) @ np.transpose(a[:,None]-b[:,None])
 
-    # i = 1
-    # j = 2
-    # B = np.zeros((3,3))
-
-    # b = mean[i,j,:]
-    # print('b: ',b[:,None])
-    # for n in range(50):
-    #     a = f_seg_preds[n,i,j,:]
-        
-    #     B += (a[:,None]-b[:,None]) @ np.transpose(a[:,None]-b[:,None]) 
-    # print('a: ', a[:,None])  
-
-    # print('covariance matrix: ', B)
-
-
+            V[i][j] = V[i][j]/f_seg_preds.shape[0]
     return V
 
 # get heat map
-def get_accuracy_map(preds, label, loop_num):
+def get_accuracy_map(preds, label, loop_num, img):
 
     accu_map = np.zeros((256,256))
     for i in range(label.shape[0]):
-        accu = get_pix_acc(preds[:,i,:], label[i,:], loop_num)
+        accu= get_pix_acc(preds[:,i,:], label[i,:], loop_num)
         accu_map[i] = accu
 
-    std = np.sqrt( accu_map * ( np.ones((256,256)) - accu_map ) )
+    std = np.sqrt( accu_map/loop_num * ( np.ones((256,256)) - accu_map ) )
 
-    plt.imshow(accu_map, interpolation='nearest')
-    plt.colorbar()
-    plt.show()
+    #plot_accu_map(img, label, accu_map)
+
+    return accu_map, std
 
 def get_pix_acc(pred, label, loop_num): # get pixel accuracy for each row of image
     accuracy = []
@@ -235,10 +216,71 @@ def get_pix_acc(pred, label, loop_num): # get pixel accuracy for each row of ima
                 count += 1
         accuracy.append(count/loop_num)
     accuracy = np.array(accuracy)
-
-    std = np.sqrt( accuracy/loop_num * ( np.ones((256,1)) - accuracy ) )
     
-    return accuracy, std # dim (256,)
+    return accuracy # dim (256,)
+
+def compute_determinant_covar(label_mode, var_mat):
+ 
+    det = np.zeros((label_mode.shape))
+    for i in range(label_mode.shape[0]):
+        for j in range(label_mode.shape[1]):
+            det[i,j] = LA.det(var_mat[i][j])
+
+    classes = np.unique(label_mode)
+    class_maxdet_index = {}
+    for i in classes:
+        index_mat = np.ma.where(label_mode == i, 1, 0)
+        class_det = det * index_mat
+        max_det = np.max(class_det)
+        itemindex = np.where(det == max_det)
+        class_maxdet_index[i] = itemindex
+
+    return det, class_maxdet_index
+
+
+def draw_accu_norm_dist(P, std):
+    itemindex = np.where((P>0.2)&(P<1))
+    h_ind = itemindex[0][1]
+    w_ind = itemindex[1][1]
+    a=P[h_ind,w_ind]
+    b=std[h_ind,w_ind]
+    print("a: ", a)
+    print("b: ", b)
+
+    Num = 1000
+    x = np.linspace(0, 2, num=Num)
+    y = 1/( np.sqrt( 2*np.pi*b**2 ) ) * np.exp( -1/(2*b**2)*( x - a*np.ones([Num,1]) )**2 )
+    u = stats.norm.pdf(x, a, b)
+    
+    x = x.reshape((1000,1))
+    plt.plot(x, y)
+    plt.show()
+
+# plot accuracy and confidence interval
+def plot_accuracy(label, accuracy, std, index):
+    
+    # get 1 line of pixel in the ground truth
+    index_line = index
+    label_line= label[index_line,:,]
+    accuracy_line = accuracy[index_line,:] # (50,256,256)
+    std_line = std[index_line,:]
+
+    # change class number to class name for categorical display
+    label_line = label_line.astype(str)
+    label_line[label_line == '0'] = "Tree"
+    label_line[label_line == '1'] = "Grass"
+    label_line[label_line == '2'] = "Concrete"
+
+    plt.rcParams["figure.figsize"] = [20, 10]
+    # plt.rcParams["figure.autolayout"] = True
+    ax1 = plt.subplot()
+    ax1.set_ylabel('class name')
+    l1, = ax1.plot(label_line, label='train label', color='red')
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('accuracy')
+    l2 = ax2.errorbar(range(256), accuracy_line, yerr = std_line, barsabove=True, fmt="bo", label='accuracy')
+    plt.legend([l1, l2], ['train label', 'accuracy'])
+    plt.show()
 
 
 # get red line for f_seg_preds
@@ -253,7 +295,6 @@ def get_red_line_plot(image, f_seg_preds):
 
     plt.legend()
     plt.show()
-
 
 
 def read_image(image_path):
@@ -290,7 +331,7 @@ def loop_predict(image, net, loop_num, unet_option):
     print("pred mask shape: ", pred_masks.shape)
     for i in range(loop_num):
 
-        mask = predict_img(net=net,
+        mask, probs = predict_img(net=net,
                             img=image,
                             unet_option=unet_option,
                             scale_factor=1,
@@ -300,7 +341,6 @@ def loop_predict(image, net, loop_num, unet_option):
         pred_masks[i,:,:] = mask
 
     # pred_masks = np.array(pred_masks)
-
     file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2_{}.pickle'.format(d4)
     # file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_mean_exp2.pickle'
 
@@ -381,7 +421,7 @@ if __name__ == '__main__':
     logging.info(f'Using device {device}')
 
     model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
 
@@ -404,7 +444,7 @@ if __name__ == '__main__':
 
     # looping 50 times for predictions
     loop_num = 50
-    pred_masks = loop_predict(image, net, loop_num, unet_option)
+    # pred_masks = loop_predict(image, net, loop_num, unet_option)
 
     # load pickle file
     file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_exp2_4-21.pickle'
@@ -433,9 +473,9 @@ if __name__ == '__main__':
     # plot_img_and_mask_3(rgb_im, label, f_segmode)
 
     # save noisy image
-    file_pickle_name = '/home/geoint/tri/github_files/exp2_label_mode_4-25.pickle'
-    with open(file_pickle_name, 'wb') as handle:
-        pickle.dump(label_mode, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    # file_pickle_name = '/home/geoint/tri/github_files/exp2_label_mode_4-25.pickle'
+    # with open(file_pickle_name, 'wb') as handle:
+    #     pickle.dump(label_mode, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 
     f_seg_mode = get_f_seg(noisy_im, label_mode)
@@ -459,54 +499,18 @@ if __name__ == '__main__':
 
     #get_red_line_plot(noisy_im, f_seg_preds)
 
-    #####
-    # get 1 line of pixel in the ground truth
-    index_line = 127
-    label_line_arr = label[index_line,:,]
-    pred_line_unetvaerq_arr = pred_masks_unetvaerq[:,index_line,:] # (50,256,256)
+    accuracy_map, accu_std = get_accuracy_map(pred_masks_unetvaerq, label, loop_num, noisy_im)
+    #plot_accuracy(label, accuracy_map, accu_std, index=127)
 
-    # get accuracy
-    accuracy, std_accu = get_pix_acc(pred_line_unetvaerq_arr, label_line_arr, loop_num)
+    #draw_accu_norm_dist(accuracy_map, accu_std)
 
-    print("standard deviation of accuracy: ",std_accu)
+    det_mat, class_maxdet_index = compute_determinant_covar(label_mode, var_mat)
+    print(det_mat)
+    print(class_maxdet_index)
+    for i in class_maxdet_index.keys():
+        h_ind = class_maxdet_index[i][0][0]
+        w_ind = class_maxdet_index[i][1][0]
+        print("determinant for class "+str(i)+": "+ str(det_mat[h_ind,w_ind]))
+        print(var_mat[h_ind][w_ind])
 
-    get_accuracy_map(pred_masks_unetvaerq, label, loop_num)
-    #print(accuracy_map)
-
-
-    # get f line at index line
-    rgb_line = rgb_im[index_line,:,:]
-    #pred_line_gt = f_seg_gt[index_line,:,:]
-    # for i in range(f_seg_preds.shape[2]):
-    #     f_seg_preds[:,:,i]
-    # plot_3D(rgb_line, pred_lines)
-
-
-    # change class number to class name for categorical display
-    label_line_arr = label_line_arr.astype(str)
-    label_line_arr[label_line_arr == '0'] = "Tree"
-    label_line_arr[label_line_arr == '1'] = "Grass"
-    label_line_arr[label_line_arr == '2'] = "Concrete"
-
-    #print("pred mean line: ", pred_line_unetvaerq_arr.shape)
-
-    plt.rcParams["figure.figsize"] = [20, 10]
-    #plt.rcParams["figure.autolayout"] = True
-    ax1 = plt.subplot()
-    ax1.set_ylabel('class number')
-    l1, = ax1.plot(label_line_arr, label='train label', color='red')
-    ax2 = ax1.twinx()
-    ax2.set_ylabel('accuracy')
-    l2, = ax2.plot(accuracy, 'bo')
-    plt.legend([l1, l2], ['train label', 'accuracy'])
     
-    # plt.plot(range(256), pred_line_unetvaerq_arr, label=('U_mean'))
-    # for index in range(pred_line_unetvaerq_arr.shape[0]):
-    #     plt.plot(range(256), pred_line_unetvaerq_arr[index], '--')
-    # plt.plot(label_line_arr, label='train label', color='red', linewidth=2)
-    # plt.plot(range(256), mean_pred_vaerq_line, label = 'RQUnet-VAE')
-    # plt.fill_between(range(256), mean_pred_vaerq_line-std_pred_vaerq_line, mean_pred_vaerq_line+std_pred_vaerq_line, alpha=0.5)
-    # plt.plot(range(256), mean_pred_rq_line, label = 'RQUnet')
-    # plt.fill_between(range(256), mean_pred_rq_line-std_pred_rq_line, mean_pred_rq_line+std_pred_rq_line, alpha=0.5)
-    # plt.legend()
-    plt.show()

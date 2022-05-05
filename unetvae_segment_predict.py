@@ -23,7 +23,7 @@ import itertools
 from unet import UNet_VAE, UNet_RQ
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test, UNet_VAE_RQ
-from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2
+from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2, UNet_VAE_Stacked
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
 from utils.utils import plot_img_and_mask_recon
 
@@ -270,8 +270,15 @@ if __name__ == '__main__':
     im_type = image_path[17:25]
     segment=True
     alpha = 0.0
-    unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    unet_option = 'unet_vae_stacked' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
     image_option = "clean" # "clean" or "noisy"
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #logging.info(f'Loading model {args.model}')
+    logging.info(f'Using device {device}')
+
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
@@ -294,19 +301,15 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme2':
         net = UNet_VAE_RQ_scheme2(3, segment, alpha)
+    elif unet_option == 'unet_vae_stacked':
+        net = UNet_VAE_Stacked(3, segment, device, model_unet_vae)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    #logging.info(f'Loading model {args.model}')
-    logging.info(f'Using device {device}')
-
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
-
+    
     net.to(device=device)
     if unet_option == 'unet_jaxony' or unet_option == 'unet_rq':
         net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
         print('Model loaded! ', model_unet_jaxony)
-    else:
+    elif unet_option != 'unet_vae_stacked':
         net.load_state_dict(torch.load(model_unet_vae, map_location=device))
         print('Model loaded! ', model_unet_vae)
 

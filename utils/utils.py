@@ -184,3 +184,22 @@ def plot_accu_map(image, mask_true, accu_map):
     fig.tight_layout()
     # put those patched as legend-handles into the legend
     plt.show()
+
+def plot_pred_only(mask_pred, image_name, accuracy=0):
+    #classes = ['Tree', 'Grass', 'Soil', 'Concrete'] # 6-Cloud not present
+    #colors = ['forestgreen', 'lawngreen', 'brown', 'orange']
+
+    classes = ['Tree', 'Grass','Concrete'] # 6-Cloud not present
+    colors = ['forestgreen', 'lawngreen', 'orange']
+    colormap = pltc.ListedColormap(colors)
+
+     # lets plot some information here
+    #fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(60, 60), sharex=True, sharey=True)
+    plt.title(str("Prediction "+ str(accuracy)))
+    plt.imshow(mask_pred, cmap=colormap)
+    # create a patch (proxy artist) for every color 
+    patches = [mpatches.Patch(color=colors[i], label="{l}".format(l=classes[i])) for i in range(len(classes))]
+    # put those patched as legend-handles into the legend
+    plt.axis('off')
+    plt.savefig(image_name, bbox_inches='tight')
+    plt.show()

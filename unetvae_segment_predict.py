@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from matplotlib import image
 import rasterio as rio
 #import opencv as cv
 
@@ -25,7 +26,7 @@ from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_ol
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test, UNet_VAE_RQ
 from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2, UNet_VAE_Stacked
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
-from utils.utils import plot_img_and_mask_recon
+from utils.utils import plot_img_and_mask_recon, plot_pred_only
 
 
 ########
@@ -72,7 +73,7 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     return con_mat, accuracy, balanced_accuracy
 
 
-def plot_confusion_matrix(cm, class_names=['a', 'b', 'c']):
+def plot_confusion_matrix(cm, class_names=['a', 'b', 'c'], name=''):
     """
     Returns a matplotlib figure containing the plotted confusion matrix.
     Args:
@@ -95,6 +96,10 @@ def plot_confusion_matrix(cm, class_names=['a', 'b', 'c']):
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     #plt.savefig('/home/geoint/tri/nasa_senegal/confusion_matrix/{}_chm_int_cfn_matrix.png'.format(label_name[:-4]))
+    conf_mat_name = '/home/geoint/tri/github_files/results_paper1/image_1/conf_mat_{}.png'.format(name)
+    
+    plt.savefig(conf_mat_name, bbox_inches='tight')
+    
     plt.show()
 
 def rescale(image):
@@ -130,7 +135,7 @@ def jpg_to_tensor(filepath):
 
 
     row,col,ch= pil.shape
-    sigma = 0.08
+    sigma = 0.1
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
     #pil_to_tensor = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
@@ -261,6 +266,9 @@ if __name__ == '__main__':
     image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
     mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
+    #image_path = '/home/geoint/tri/va059/train/sat/number13458.TIF'
+    #mask_true_path = '/home/geoint/tri/va059/train/map/number13458.TIF'
+
     #image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
     #mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
@@ -269,16 +277,16 @@ if __name__ == '__main__':
 
     im_type = image_path[17:25]
     segment=True
-    alpha = 0.0
-    unet_option = 'unet_vae_stacked' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
-    image_option = "clean" # "clean" or "noisy"
+    alpha = 0.4
+    unet_option = 'unet_vae_RQ_torch' # options: 'unet_vae_old', 'unet_jaxony', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3', 'unet_vae_RQ_scheme1'
+    image_option = "noisy" # "clean" or "noisy"
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
     model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
@@ -312,6 +320,19 @@ if __name__ == '__main__':
     elif unet_option != 'unet_vae_stacked':
         net.load_state_dict(torch.load(model_unet_vae, map_location=device))
         print('Model loaded! ', model_unet_vae)
+
+    # baseline unet
+    net_1 = UNet_test(3)
+    net_1.to(device=device)
+    net_1.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
+    baseline_mask = predict_img(net=net_1,
+                        filepath=image_path,
+                        scale_factor=1,
+                        out_threshold=0.5,
+                        device=device)
+
+    
+
 
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
@@ -364,15 +385,47 @@ if __name__ == '__main__':
     colors = ['forestgreen', 'lawngreen', 'orange']
     colormap = pltc.ListedColormap(colors)
 
+
+    image_name = '/home/geoint/tri/github_files/results_paper1/image_1/input_image.png'
+    plt.imshow(img)
+    plt.axis('off')
+    plt.savefig(image_name, bbox_inches='tight')
+    plt.show()
+
+    label_name = '/home/geoint/tri/github_files/results_paper1/image_1/groundtruth.png'
+    plt.imshow(label, cmap = colormap)
+    plt.axis('off')
+    plt.savefig(label_name, bbox_inches='tight')
+    plt.show()
+
+    # baseline plot
+
+    base_cnf_matrix, base_accuracy, base_balanced_accuracy = confusion_matrix_func(
+            y_true=label, y_pred=baseline_mask, nclasses=len(classes), norm=True
+        )
+
+    print("Baseline Overall Accuracy: ", base_accuracy)
+    print("Baseline Balanced Accuracy: ", base_balanced_accuracy)
+
+    plot_confusion_matrix(base_cnf_matrix, class_names=classes, name="base")
+
+    base_pred_name = '/home/geoint/tri/github_files/results_paper1/image_1/base_unet_pred.png'
+
+    plot_pred_only(baseline_mask,base_pred_name, base_balanced_accuracy)
+
     cnf_matrix, accuracy, balanced_accuracy = confusion_matrix_func(
             y_true=label, y_pred=mask, nclasses=len(classes), norm=True
         )
 
     print("Overall Accuracy: ", accuracy)
     print("Balanced Accuracy: ", balanced_accuracy)
-    plot_confusion_matrix(cnf_matrix, class_names=classes)
-    if im_type == 'sentinel':
-        plot_img_and_mask_4(img, label, mask)
-    else:
-        plot_img_and_mask_3(img, label, mask, balanced_accuracy)
+    plot_confusion_matrix(cnf_matrix, class_names=classes, name='rqunet_vae')
+    # if im_type == 'sentinel':
+    #     plot_img_and_mask_4(img, label, mask)
+    # else:
+    #     plot_img_and_mask_3(img, label, mask, balanced_accuracy)
     #plot_img_and_mask_2(img, mask)
+
+    rqunetvae_pred_name = '/home/geoint/tri/github_files/results_paper1/image_1/rqunet_vae_pred.png'
+
+    plot_pred_only(mask,rqunetvae_pred_name, balanced_accuracy)

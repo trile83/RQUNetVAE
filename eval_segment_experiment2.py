@@ -194,6 +194,10 @@ def get_covar_mat(f_seg_preds, f_seg_mode):
 # get heat map
 def get_accuracy_map(preds, label, loop_num, img):
 
+    img_name = '/home/geoint/tri/github_files/results_paper1/input_img.png'
+    label_name = '/home/geoint/tri/github_files/results_paper1/groundtruth.png'
+    accu_map_name = '/home/geoint/tri/github_files/results_paper1/accuracy_map.png'
+
     accu_map = np.zeros((256,256))
     for i in range(label.shape[0]):
         accu= get_pix_acc(preds[:,i,:], label[i,:], loop_num)
@@ -202,6 +206,27 @@ def get_accuracy_map(preds, label, loop_num, img):
     std = np.sqrt( accu_map/loop_num * ( np.ones((256,256)) - accu_map ) )
 
     #plot_accu_map(img, label, accu_map)
+
+    colors = ['forestgreen', 'lawngreen', 'orange']
+    colormap = pltc.ListedColormap(colors)
+
+    plt.imshow(img)
+    plt.axis('off')
+    plt.savefig(img_name, bbox_inches='tight')
+    plt.show()
+
+
+    plt.imshow(label, cmap = colormap)
+    plt.axis('off')
+    plt.savefig(label_name, bbox_inches='tight')
+    plt.show()
+
+
+    plt.imshow(accu_map, cmap = 'coolwarm')
+    plt.axis('off')
+    plt.colorbar()
+    plt.savefig(accu_map_name, bbox_inches='tight')
+    plt.show()
 
     return accu_map, std
 
@@ -258,6 +283,8 @@ def draw_accu_norm_dist(P, std):
 
 # plot accuracy and confidence interval
 def plot_accuracy(label, accuracy, std, index):
+
+    name = '/home/geoint/tri/github_files/results_paper1/accuracy_line_plot.png'
     
     # get 1 line of pixel in the ground truth
     index_line = index
@@ -280,6 +307,7 @@ def plot_accuracy(label, accuracy, std, index):
     ax2.set_ylabel('accuracy')
     l2 = ax2.errorbar(range(256), accuracy_line, yerr = std_line, barsabove=True, fmt="bo", label='accuracy')
     plt.legend([l1, l2], ['train label', 'accuracy'])
+    plt.savefig(name, bbox_inches='tight')
     plt.show()
 
 
@@ -421,7 +449,7 @@ if __name__ == '__main__':
     logging.info(f'Using device {device}')
 
     model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
-    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-08_epoch30_0.0_va059_segment.pth'
+    model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
 
     net.to(device=device)
 
@@ -500,7 +528,7 @@ if __name__ == '__main__':
     #get_red_line_plot(noisy_im, f_seg_preds)
 
     accuracy_map, accu_std = get_accuracy_map(pred_masks_unetvaerq, label, loop_num, noisy_im)
-    #plot_accuracy(label, accuracy_map, accu_std, index=127)
+    plot_accuracy(label, accuracy_map, accu_std, index=127)
 
     #draw_accu_norm_dist(accuracy_map, accu_std)
 

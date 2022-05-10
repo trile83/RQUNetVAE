@@ -2,6 +2,26 @@ import matplotlib.pyplot as plt
 import pickle
 import numpy as np
 
+def get_max_accuracy(acc_dict, alpha_range, sigma_range):
+    max_value_list = []
+    max_acc = (0,0,0,0)
+    for j in sigma_range:
+        #print("sigma: ", j)
+        local_max = (0,0)
+        local_std = 0
+        for i in alpha_range:
+            #print("alpha value: ", i)
+            #print(acc_dict[j][i]['avg_balanced_accuracy'])
+            i = round(i,1)
+            
+            if acc_dict[j][i]['avg_balanced_accuracy'] > local_max[1]:
+                local_max = (i,acc_dict[j][i]['avg_balanced_accuracy'])
+                local_std = acc_dict[j][i]['balanced_std']
+                
+            max_acc = (j, local_max[0], local_max[1], local_std)
+        max_value_list.append(max_acc)
+
+    return max_value_list
 
 if __name__ == '__main__':
 
@@ -17,7 +37,16 @@ if __name__ == '__main__':
     with open(unet_rq_dict_file, 'rb') as input_file:
         unet_rq_dict = pickle.load(input_file)
 
-    sigma_range = np.arange(0,0.1,0.01)
+
+    # get max accuracy for each sigma
+    alpha_range = np.arange(0,1.1,0.1)
+    sigma_range = np.arange(0.0,0.2,0.01)
+    max_lst = get_max_accuracy(unet_vae_rq_dict, alpha_range, sigma_range)
+    print(max_lst)
+
+    # visualization
+
+    sigma_range = np.arange(0,0.12,0.01)
     sigma_acc_unet_jaxony = []
     sigma_acc_unet_vae_rq = []
     sigma_acc_unet_rq = []
@@ -54,6 +83,7 @@ if __name__ == '__main__':
     std_unet_vae_rq = np.array(std_unet_vae_rq)
     std_unet_rq = np.array(std_unet_rq)
 
+    name = '/home/geoint/tri/github_files/results_paper1/avg_accuracy_rqunet_vs_unet_plot.png'
     plt.title('Sigma vs Class-balanced Accuracy')
     plt.plot(sigma_range, sigma_acc_unet_jaxony, label = 'typical Unet')
     plt.fill_between(sigma_range, sigma_acc_unet_jaxony-std_unet_jaxony, sigma_acc_unet_jaxony+std_unet_jaxony, alpha=0.5)
@@ -66,4 +96,5 @@ if __name__ == '__main__':
     #plt.plot(sigma_range, sigma_acc_unet_vae_rq_3, label = 'Unet VAE RQ 0.3')
     #plt.plot(sigma_range, sigma_acc_unet_vae_rq_4, label = 'Unet VAE RQ 0.4')
     plt.legend()
+    plt.savefig(name, bbox_inches='tight')
     plt.show()

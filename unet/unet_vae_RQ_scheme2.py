@@ -694,7 +694,7 @@ class UNet_VAE_RQ_scheme2(nn.Module):
            
         # II. ISTA:
         beta = 500   # 1, 601  
-        Iter = 50   # 20, 10
+        Iter = 20   # 20, 10
         #
         u = x
 

@@ -189,8 +189,8 @@ def train_net(net,
     train_images = images[:70]
     train_labels = labels[:70]
 
-    val_images = images[70:72]
-    val_labels = labels[70:72]
+    val_images = images[70:75]
+    val_labels = labels[70:75]
 
     # 2. Split into train / validation partitions
     n_val = len(val_images)
@@ -207,7 +207,7 @@ def train_net(net,
     val_loader = DataLoader(transformed_dataset_val, shuffle=True, **loader_args)
 
     print("train loader size",len(train_loader))
-    print("val loader size",len(val_loader))
+    #print("val loader size",len(val_loader))
 
     # (Initialize logging)
     experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
@@ -241,6 +241,8 @@ def train_net(net,
     loss_items['recon_loss'] = []
     loss_items['kl_loss'] = []
     loss_items['total_loss'] = []
+    
+    min_valid_loss = np.inf
     for epoch in range(epochs):
         #get the network output
         net.train()
@@ -320,46 +322,69 @@ def train_net(net,
                 })
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
 
-                #_, predicted = torch.max(masked_output.data, 1)
-                #total_train += true_masks.nelement()
-                #correct_train += predicted.eq(true_masks.data).sum().item()
-                #train_accuracy = 100 * correct_train/ total_train
-                #logging.info('Training accuracy: {}'.format(train_accuracy))
-
-                #print(net.named_parameters())
-
-                # Evaluation round
-                division_step = (n_train // (10 * batch_size))
-                if division_step > 0:
-                    if global_step % division_step == 0:
-                        histograms = {}
-                        for tag, value in net.named_parameters():
-                            tag = tag.replace('/', '.')
-                            #histograms['Weights/' + tag] = wandb.Histogram(value.data.cpu())
-                            #histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
-
-                        #val_score = evaluate(net, val_loader, device)
-                        #scheduler.step(val_score)
-
-                        #logging.info('Validation loss score: {}'.format(val_score))
-                        experiment.log({
-                            'learning rate': optimizer.param_groups[0]['lr'],
-                            #'validation loss': val_score,
-                            #'images': wandb.Image(images[0,:,:,:2].cpu()),
-                            'masks': {
-                                #'true': wandb.Image(true_masks[0].float().cpu()),
-                                #'pred': wandb.Image(torch.softmax(masked_output, dim=1).argmax(dim=1)[0].float().cpu())
-                            },
-                            'step': global_step,
-                            'epoch': epoch,
-                            **histograms
-                        })
                 
-        if save_checkpoint:
-            Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_4-28_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
-            #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
-            logging.info(f'Checkpoint {epoch + 1} saved!')
+            # Validation
+            valid_loss = 0.0
+            net.eval()     # Optional when not using Model Specific layer
+            for batch in val_loader:
+                # Transfer Data to GPU if available
+                images = batch['image']
+                true_masks = batch['mask']
+
+                images = images.to(device=device, dtype=torch.float32)
+                true_masks = true_masks.to(device=device, dtype=torch.float32)
+
+                #print("true mask shape: ", true_masks.shape)
+
+                images = torch.reshape(images, (batch_size,3,256,256))
+                true_masks = torch.reshape(true_masks, (batch_size,3,256,256))
+
+                # Forward Pass
+                output = net(images)
+
+                if unet_option == 'unet' or unet_option == 'unet_1':
+                    output = output
+                elif unet_option == 'simple_unet':
+                    output = output
+                else:
+                    output = output[3]
+
+                
+                # Find the Loss
+                loss = criterion(output, true_masks)
+                # Calculate Loss
+                valid_loss += loss.item()
+
+                print(f'Epoch {epoch+1} \t\t Training Loss: {epoch_loss / len(train_loader)} \t\t Validation Loss: {valid_loss / len(val_loader)}')
+                
+                if min_valid_loss > valid_loss:
+                    print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{valid_loss:.6f}) \t Saving The Model')
+                    min_valid_loss = valid_loss
+                    
+                    # Saving State Dict
+                    Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
+                    torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_5-7_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+                    
+                            
+                        #logging.info('Validation loss score: {}'.format(val_score))
+                        # experiment.log({
+                        #     'learning rate': optimizer.param_groups[0]['lr'],
+                        #     #'validation loss': val_score,
+                        #     #'images': wandb.Image(images[0,:,:,:2].cpu()),
+                        #     'masks': {
+                        #         #'true': wandb.Image(true_masks[0].float().cpu()),
+                        #         #'pred': wandb.Image(torch.softmax(masked_output, dim=1).argmax(dim=1)[0].float().cpu())
+                        #     },
+                        #     'step': global_step,
+                        #     'epoch': epoch,
+                        #     **histograms
+                        # })
+                
+        # if save_checkpoint:
+        #     Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
+        #     torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_5-7_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+        #     #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
+        #     logging.info(f'Checkpoint {epoch + 1} saved!')
 
     #plt.plot(loss_items['total_loss'])
     plt.plot(loss_items['recon_loss'], 'r--', loss_items['kl_loss'], 'b--', loss_items['total_loss'], 'g')

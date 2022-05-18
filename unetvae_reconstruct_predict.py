@@ -70,10 +70,14 @@ def jpg_to_tensor(filepath=image_path):
         img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
     pil = np.array(img_data)
+
     if im_type != "sentinel":
         pil=pil/255
     else:
         pil=(pil - np.min(pil)) / (np.max(pil) - np.min(pil))
+
+    # print(np.max(pil))
+    # print(np.min(pil))
 
     row,col,ch= pil.shape
     sigma = 0.01 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
@@ -93,8 +97,9 @@ def tensor_to_jpg(tensor):
         tensor = tensor.cpu()
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
-    #pil = rescale(pil)
-    pil = rescale_truncate(pil)
+    pil = rescale(pil)
+
+    #pil = rescale_truncate(pil)
     return pil
 
 #predict image
@@ -110,6 +115,8 @@ def predict_img(net,
         img = jpg_to_tensor(filepath)[0] ## clean image
     elif image_option=='noisy':
         img = jpg_to_tensor(filepath)[1] ## noisy image
+
+    
 
     img = img.to(device=device, dtype=torch.float32)
 
@@ -160,19 +167,19 @@ if __name__ == '__main__':
     args = get_args()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-18_epoch10_0.0_recon.pth'
-    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_sentinel_4-28_recon.pth'
+    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch19_sentinel_5-7_recon.pth'
 
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3)
+        net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
         net = UNet_VAE_RQ_old_trainable(3,alpha)
     elif unet_option == 'unet_vae_RQ_torch':
-        net = UNet_VAE_RQ_new_torch(3, segment, alpha)
+        net = UNet_VAE_RQ_old_torch(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme3':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
@@ -188,10 +195,14 @@ if __name__ == '__main__':
 
     net.to(device=device)
 
-    if im_type == 'sentinel':
-        net.load_state_dict(torch.load(model_sentinel_saved, map_location=device))
+    if unet_option != 'unet_vae_stacked':
+        if im_type == 'sentinel':
+            net.load_state_dict(torch.load(model_sentinel_saved, map_location=device))
+        else:
+            net.load_state_dict(torch.load(model_saved, map_location=device))
+
     else:
-        net.load_state_dict(torch.load(model_saved, map_location=device))
+        net = net
 
     logging.info('Model loaded!')
     logging.info(f'\nPredicting image {image_path} ...')

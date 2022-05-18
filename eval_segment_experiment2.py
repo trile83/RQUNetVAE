@@ -263,22 +263,101 @@ def compute_determinant_covar(label_mode, var_mat):
     return det, class_maxdet_index
 
 
-def draw_accu_norm_dist(P, std):
-    itemindex = np.where((P>0.2)&(P<1))
-    h_ind = itemindex[0][1]
-    w_ind = itemindex[1][1]
-    a=P[h_ind,w_ind]
-    b=std[h_ind,w_ind]
-    print("a: ", a)
-    print("b: ", b)
+def draw_accu_norm_dist(P, std, label, class_num_list = []):
+
+    name = '/home/geoint/tri/github_files/results_paper1/allclass_accuracy_normal_density_plot.png'
+
+    cluster_means = {}
+    for class_num in class_num_list:
+        itemindex = np.where(label == class_num)
+        h_ind_lst = itemindex[0]
+        w_ind_lst = itemindex[1]
+
+        mean_cluster = 0
+        total = 0
+
+        for i in range(len(h_ind_lst)):
+            a = P[h_ind_lst[i],w_ind_lst[i]]
+            total += a
+
+        mean_cluster = total/len(h_ind_lst)
+        #std = np.sqrt(mean_cluster * (1-mean_cluster))
+
+        cluster_means[class_num]=mean_cluster
+
+        # loop through all pixels
+        # Num = 1000
+        # x = np.linspace(mean_cluster-1, mean_cluster+1, num=Num)
+        # x = x.reshape((1000,1))
+
+    # for i in range(len(h_ind_lst)):
+    #     a = P[h_ind_lst[i],w_ind_lst[i]]
+    #     total += a
+    #     b = std[h_ind_lst[i],w_ind_lst[i]]
+    #     u = stats.norm.pdf(x, a, b)
+    #     if b != 0:
+    #         plt.plot(x, u)
 
     Num = 1000
-    x = np.linspace(0, 2, num=Num)
-    y = 1/( np.sqrt( 2*np.pi*b**2 ) ) * np.exp( -1/(2*b**2)*( x - a*np.ones([Num,1]) )**2 )
-    u = stats.norm.pdf(x, a, b)
-    
+    x = np.linspace(-0.5, 1.7, num=Num)
     x = x.reshape((1000,1))
-    plt.plot(x, y)
+    for class_num in cluster_means.keys():
+        std = np.sqrt(cluster_means[class_num] * (1-cluster_means[class_num]))
+        u = stats.norm.pdf(x, cluster_means[class_num], std)
+        if class_num == 0:
+            plot_name = 'tree'
+            color = 'blue'
+        elif class_num == 1:
+            plot_name = 'grass'
+            color = 'orange'
+        else:
+            plot_name = 'concrete'
+            color = 'green'
+        plt.plot(x, u, label=plot_name)
+        # Plot the average line
+        plt.axvline(cluster_means[class_num], color=color, linestyle='dashed', linewidth=1)
+    plt.legend()
+    plt.xlabel('pixel accuracy')
+    plt.ylabel('probability density')
+    plt.savefig(name, bbox_inches='tight')
+    plt.show()
+
+
+
+    # Num = 1000
+    # x = np.linspace(a-0.5, a+0.5, num=Num)
+    # #y = 1/( np.sqrt( 2*np.pi*b**2 ) ) * np.exp( -1/(2*b**2)*( x - a*np.ones([Num,1]) )**2 )
+    # u = stats.norm.pdf(x, a, b)
+    
+    # x = x.reshape((1000,1))
+    # plt.plot(x, u)
+    # plt.savefig(name, bbox_inches='tight')
+    # plt.show()
+
+
+def draw_accu_norm_pixel(P, std, label, class_num):
+
+    name = '/home/geoint/tri/github_files/results_paper1/class_{}_accuracy_normal_density.png'.format(class_num)
+
+    itemindex = np.where(label == class_num)
+    h_ind_lst = itemindex[0]
+    w_ind_lst = itemindex[1]
+    # print("a: ", a)  # a:  0.26
+    # print("b: ", b)  # b:  0.06203224967708329
+
+    Num = 1000
+    x = np.linspace(-0.5, 1.7, num=Num)
+    x = x.reshape((1000,1))
+    # y = 1/( np.sqrt( 2*np.pi*b**2 ) ) * np.exp( -1/(2*b**2)*( x - a*np.ones([Num,1]) )**2 )
+    # u = stats.norm.pdf(x, a, b)
+
+    for i in range(len(h_ind_lst)):
+        a = P[h_ind_lst[i],w_ind_lst[i]]
+        b = std[h_ind_lst[i],w_ind_lst[i]]
+        u = stats.norm.pdf(x, a, b)
+        #if b != 0:
+        plt.plot(x, u)
+    plt.savefig(name, bbox_inches='tight')
     plt.show()
 
 # plot accuracy and confidence interval
@@ -528,9 +607,15 @@ if __name__ == '__main__':
     #get_red_line_plot(noisy_im, f_seg_preds)
 
     accuracy_map, accu_std = get_accuracy_map(pred_masks_unetvaerq, label, loop_num, noisy_im)
-    plot_accuracy(label, accuracy_map, accu_std, index=127)
+    # plot_accuracy(label, accuracy_map, accu_std, index=127)
 
-    #draw_accu_norm_dist(accuracy_map, accu_std)
+    draw_accu_norm_dist(accuracy_map, accu_std, label, class_num_list = [0,1,2])
+    # draw_accu_norm_dist(accuracy_map, accu_std, label, class_num = 1)
+    # draw_accu_norm_dist(accuracy_map, accu_std, label, class_num = 2)
+
+    draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 0)
+    draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 1)
+    draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 2)
 
     det_mat, class_maxdet_index = compute_determinant_covar(label_mode, var_mat)
     print(det_mat)

@@ -713,7 +713,7 @@ class UNet_VAE_Block(nn.Module):
 
 
 class UNet_VAE_Stacked(nn.Module):
-    def __init__(self, num_classes, segment, alpha, device, model_weight, in_channels=3, unet_num_block=10):
+    def __init__(self, num_classes, segment, alpha, device, model_weight, in_channels=3, unet_num_block=20):
         """
         Arguments:
         """
@@ -736,12 +736,12 @@ class UNet_VAE_Stacked(nn.Module):
 
     def forward(self, x):
 
-        print(self.unet_blocks)
+        #print(self.unet_blocks)
         # go through all blocks
         for i, module in enumerate(self.unet_blocks):
             x = module(x)
 
-            x_recon = x
+        x_recon = x
 
         #x_recon = F.relu(x)
 

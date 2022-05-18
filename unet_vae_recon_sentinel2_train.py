@@ -183,14 +183,14 @@ def train_net(net,
 
     #print(images[class_name]['train'])
 
-    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=75)
+    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=70)
     images, labels = next(train_data_gen)
 
-    train_images = images[:70]
-    train_labels = labels[:70]
+    train_images = images[:60]
+    train_labels = labels[:60]
 
-    val_images = images[70:75]
-    val_labels = labels[70:75]
+    val_images = images[60:70]
+    val_labels = labels[60:70]
 
     # 2. Split into train / validation partitions
     n_val = len(val_images)
@@ -207,7 +207,7 @@ def train_net(net,
     val_loader = DataLoader(transformed_dataset_val, shuffle=True, **loader_args)
 
     print("train loader size",len(train_loader))
-    #print("val loader size",len(val_loader))
+    print("val loader size",len(val_loader))
 
     # (Initialize logging)
     experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
@@ -301,9 +301,10 @@ def train_net(net,
                     print("total loss: ", loss)
 
                 optimizer.zero_grad()
-                #print('At step {}, loss is {}'.format(step, loss.data.cpu()))
                 loss.backward()
                 optimizer.step()
+
+                #print('At step {}, loss is {}'.format(step, loss.data.cpu()))
 
                 #for p in net.parameters():
                     #print(p)
@@ -326,34 +327,40 @@ def train_net(net,
             # Validation
             valid_loss = 0.0
             net.eval()     # Optional when not using Model Specific layer
-            for batch in val_loader:
+            for batch_val in val_loader:
                 # Transfer Data to GPU if available
-                images = batch['image']
-                true_masks = batch['mask']
+                images_val = batch_val['image']
+                true_masks_val = batch_val['mask']
 
-                images = images.to(device=device, dtype=torch.float32)
-                true_masks = true_masks.to(device=device, dtype=torch.float32)
+                images_val = images_val.to(device=device, dtype=torch.float32)
+                true_masks_val = true_masks_val.to(device=device, dtype=torch.float32)
 
                 #print("true mask shape: ", true_masks.shape)
 
-                images = torch.reshape(images, (batch_size,3,256,256))
-                true_masks = torch.reshape(true_masks, (batch_size,3,256,256))
+                images_val = torch.reshape(images_val, (batch_size,3,256,256))
+                true_masks_val = torch.reshape(true_masks_val, (batch_size,3,256,256))
 
                 # Forward Pass
-                output = net(images)
+                output_val = net(images)
 
                 if unet_option == 'unet' or unet_option == 'unet_1':
-                    output = output
+                    output_val_recon = output_val
+                    loss = criterion(output_val_recon, true_masks_val)
                 elif unet_option == 'simple_unet':
-                    output = output
+                    output_val_recon = output_val
+                    loss = criterion(output_val_recon, true_masks_val)
                 else:
-                    output = output[3]
+                    output_val_recon = output_val[3]
 
-                
+                mu = output_val[1]
+                logvar = output_val[2]
+                kl_loss_val = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            
                 # Find the Loss
-                loss = criterion(output, true_masks)
+                recon_loss_val = criterion(output_val_recon, true_masks_val)
+                loss_val = recon_loss_val + kl_loss_val
                 # Calculate Loss
-                valid_loss += loss.item()
+                valid_loss += loss_val.item()
 
                 print(f'Epoch {epoch+1} \t\t Training Loss: {epoch_loss / len(train_loader)} \t\t Validation Loss: {valid_loss / len(val_loader)}')
                 
@@ -361,6 +368,7 @@ def train_net(net,
                     print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{valid_loss:.6f}) \t Saving The Model')
                     min_valid_loss = valid_loss
                     
+                    # print("valid_loss: ", valid_loss)
                     # Saving State Dict
                     Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
                     torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_5-7_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))

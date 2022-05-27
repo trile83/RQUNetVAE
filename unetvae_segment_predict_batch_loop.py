@@ -54,11 +54,11 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     y_true = y_true.flatten()
     y_pred = y_pred.flatten()
 
-    y_true = y_true-1
-    y_true[y_true == 3] == 2
-    if np.max(y_true)==255:
-        y_true[y_true == 255] = 2
-    y_true[y_true > 2] = 2
+    # y_true = y_true-1
+    # y_true[y_true == 3] == 2
+    # if np.max(y_true)==255:
+    #     y_true[y_true == 255] = 2
+    # y_true[y_true > 2] = 2
 
     #print("label unique values",np.unique(y_true))
     #print("prediction unique values",np.unique(y_pred))
@@ -201,8 +201,23 @@ def data_generator(files, sigma=0.08, mode="test", batch_size=20):
             for b in range(img_data.shape[2]):
                 img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
-            if img_data.shape == (256,256,1):
-                Y_lst.append(img_data)
+            # reclass
+            img_data = img_data-1
+            img_data[img_data == 1] == 0
+            img_data[img_data == 3] == 2
+            img_data[img_data == 2] == 1
+
+            # if np.max(img_data)==255:
+            #     img_data[img_data == 255] = 1
+
+            if np.max(img_data)>1:
+                img_data[img_data > 1] = 1
+
+            img_data = np.asarray(img_data)
+            img_data = img_data.reshape((256,256))
+            Y_lst.append(img_data)
+
+            
 
         X = np.array(X_lst)
         Y = np.array(Y_lst)
@@ -358,29 +373,28 @@ if __name__ == '__main__':
     use_cuda = True
     im_type = "va059" ## sentinel or naip
     segment=True
+    class_num = 2
     
     sigma_range = np.arange(0.0,0.2,0.01)
-    unet_option = 'unet_vae_RQ_torch' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
+    unet_option = 'unet_jaxony' # options: 'unet_jaxony', 'unet_vae_old', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
     image_option = "noisy" # "clean" or "noisy"
 
     acc_dict = {}
 
     if unet_option == 'unet_jaxony':
         #net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
-        file_pickle_name = '/home/geoint/tri/github_files/unet_jaxony_dictionary_4-12.pickle'
+        file_pickle_name = '/home/geoint/tri/github_files/unet_jaxony_dictionary_5-19.pickle'
         alpha_range= [0]
     elif unet_option == 'unet_rq':
         #net.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
-        file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_dictionary_4-12.pickle'
+        file_pickle_name = '/home/geoint/tri/github_files/unet_RQ_dictionary_5-19.pickle'
         alpha_range = np.arange(0,1.1,0.1)
     else:
         #net.load_state_dict(torch.load(model_unet_vae, map_location=device))
-        file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_4-12.pickle'
+        file_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_5-19.pickle'
         alpha_range = np.arange(0,1.1,0.1)
         #alpha_range = [0.5]
 
-
-    
 
     logging.info('Model loaded!')
 
@@ -401,33 +415,37 @@ if __name__ == '__main__':
             print("alpha values: ", alpha)
 
             if unet_option == 'unet_vae_1':
-                net = UNet_VAE(3)
+                net = UNet_VAE(class_num)
             elif unet_option == 'unet_jaxony':
-                net = UNet_test(3)
+                net = UNet_test(class_num)
             elif unet_option == 'unet_rq':
-                net = UNet_RQ(3, segment, alpha)
+                net = UNet_RQ(class_num, segment, alpha)
             elif unet_option == 'unet_vae_old':
-                net = UNet_VAE_old(3, segment)
+                net = UNet_VAE_old(class_num, segment)
             
             elif unet_option == 'unet_vae_RQ_allskip_trainable':
-                net = UNet_VAE_RQ_old_trainable(3,alpha)
+                net = UNet_VAE_RQ_old_trainable(class_num,alpha)
 
             elif unet_option == 'unet_vae_RQ_torch':
-                net = UNet_VAE_RQ_old_torch(3, segment, alpha)
+                net = UNet_VAE_RQ_old_torch(class_num, segment, alpha)
                 #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
             elif unet_option == 'unet_vae_RQ':
-                net = UNet_VAE_RQ(3, segment, alpha = alpha)
+                net = UNet_VAE_RQ(class_num, segment, alpha = alpha)
 
             elif unet_option == 'unet_vae_RQ_scheme3':
-                net = UNet_VAE_RQ_scheme3(3, segment, alpha)
+                net = UNet_VAE_RQ_scheme3(class_num, segment, alpha)
             elif unet_option == 'unet_vae_RQ_scheme1':
-                net = UNet_VAE_RQ_scheme1(3, segment, alpha)
+                net = UNet_VAE_RQ_scheme1(class_num, segment, alpha)
 
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             logging.info(f'Using device {device}')
 
-            model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
-            model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
+            # model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_4-07_epoch30_0.0_va059_segment.pth'
+            # model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-05_epoch30_0.0_va059_segment.pth'
+
+            model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_epoch11_va059_5-16_segment2class.pth'
+            model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch11_va059_5-16_segment2class.pth'
+
 
             net.to(device=device)
             if unet_option == 'unet_jaxony':

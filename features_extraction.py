@@ -20,7 +20,8 @@ from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mas
 #image_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
 #mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
 
-npy_path = '/home/geoint/tri/github_files/input_senegal/Tappan01_WV02_20110430_M1BS_103001000A27E100_data_568.npy'
+#npy_path = '/home/geoint/tri/github_files/input_senegal/Tappan01_WV02_20110430_M1BS_103001000A27E100_data_568.npy'
+file_path = '/home/geoint/tri/nasa_senegal/cassemance/Tappan02_WV02_20120218_M1BS_103001001077BE00_data.tif'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -28,7 +29,7 @@ use_cuda = True
 im_type='senegal'
 segment=False
 alpha = 0.1
-unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_old' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
 image_option = "clean" # "clean" or "noisy"
 
 ##################################
@@ -50,25 +51,63 @@ def rescale_truncate(image): ## function to rescale image for visualization
         map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
     return map_img
 
-def load_npy(file_path):
-    data = np.load(file_path)
-    data_1=(data - np.min(data)) / (np.max(data) - np.min(data))
-    data_1 = rescale(data_1)
-    # print(np.max(data))
-    # print(np.min(data))
-    # plt.imshow(data[:,:,:3])
-    # plt.show()
+# def load_npy(file_path):
+#     data = np.load(file_path)
+#     data_1=(data - np.min(data)) / (np.max(data) - np.min(data))
+#     data_1 = rescale(data_1)
+#     # print(np.max(data))
+#     # print(np.min(data))
+#     # plt.imshow(data[:,:,:3])
+#     # plt.show()
 
-    print("data shape: ", data_1.shape)
+#     print("data shape: ", data_1.shape)
 
-    row,col,ch= data_1.shape
-    sigma = 0.01 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
-    noisy = data_1 + sigma*np.random.randn(row,col,ch)
+#     row,col,ch= data_1.shape
+#     sigma = 0.01 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
+#     noisy = data_1 + sigma*np.random.randn(row,col,ch)
 
+#     transform_tensor = transforms.ToTensor()
+#     if use_cuda:
+#         noisy_tensor = transform_tensor(noisy).cuda()
+#         tensor = transform_tensor(data_1).cuda()
+
+#     return tensor.view([1]+list(tensor.shape)), noisy_tensor.view([1]+list(noisy_tensor.shape))
+
+def jpg_to_tensor(filepath):
+
+    naip_fn = filepath
+    driverTiff = gdal.GetDriverByName('GTiff')
+    naip_ds = gdal.Open(naip_fn, 1)
+    nbands = naip_ds.RasterCount
+    # create an empty array, each column of the empty array will hold one band of data from the image
+    # loop through each band in the image nad add to the data array
+    data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
+    for i in range(1, nbands+1):
+        band = naip_ds.GetRasterBand(i).ReadAsArray()
+        data[:, i-1] = band.flatten()
+
+    img_data = np.zeros((naip_ds.RasterYSize, naip_ds.RasterXSize, naip_ds.RasterCount),
+                    gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
+    for b in range(img_data.shape[2]):
+        img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
+        
+    pil = np.array(img_data)
+    pil = pil.reshape((5000,5000,8))
+    #pil = pil/255
+
+    pil = pil[256:512,512:768, :]
+    print(pil.shape)
+
+    # add noise
+    row,col,ch= pil.shape
+    sigma = 0.08
+    noisy = pil + sigma*np.random.randn(row,col,ch)
+
+    #pil_to_tensor = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
     transform_tensor = transforms.ToTensor()
     if use_cuda:
         noisy_tensor = transform_tensor(noisy).cuda()
-        tensor = transform_tensor(data_1).cuda()
+        tensor = transform_tensor(pil).cuda()
 
     return tensor.view([1]+list(tensor.shape)), noisy_tensor.view([1]+list(noisy_tensor.shape))
 
@@ -93,9 +132,9 @@ def extract_features(net,
     #img = img.unsqueeze(0)
 
     if image_option=='clean':
-        img = load_npy(filepath)[0] ## clean image
+        img = jpg_to_tensor(filepath)[0] ## clean image
     elif image_option=='noisy':
-        img = load_npy(filepath)[1] ## noisy image
+        img = jpg_to_tensor(filepath)[1] ## noisy image
 
     img = img.to(device=device, dtype=torch.float32)
 
@@ -180,9 +219,9 @@ if __name__ == '__main__':
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(8)
+        net = UNet_VAE_old(8, segment, in_channels=8)
     elif unet_option == 'unet_vae_RQ_old':
-        net = UNet_VAE_RQ_old(3, alpha)
+        net = UNet_VAE_RQ_old(8, alpha)
     elif unet_option == 'unet_vae_RQ_allskip_trainable':
         net = UNet_VAE_RQ_old_trainable(8,alpha)
     elif unet_option == 'unet_vae_RQ_torch':
@@ -198,8 +237,8 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-18_epoch10_0.0_recon.pth'
-    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_sentinel_4-28_recon.pth'
+    # model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-18_epoch10_0.0_recon.pth'
+    # model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_sentinel_4-28_recon.pth'
 
     net.to(device=device)
     #net.load_state_dict(torch.load(model_saved, map_location=device))
@@ -212,12 +251,13 @@ if __name__ == '__main__':
     #logging.info(f'\nPredicting image {image_path} ...')
 
     pred, feats, im = extract_features(net=net,
-                        filepath=npy_path,
+                        filepath=file_path,
                         scale_factor=1,
                         out_threshold=0.5,
                         device=device)
 
     im = tensor_to_jpg(im)
+    print(im.shape)
     im = im.reshape((256,256,8))
 
     pred = tensor_to_jpg(pred)
@@ -225,9 +265,12 @@ if __name__ == '__main__':
     im_false = get_false_color(im)
     pred_false = get_false_color(pred)
 
-    # for i in range(feats.shape[1]):
-    #     plot_img_and_mask_recon(false_col_im, feats[:,i,:,:].reshape((feats.shape[2],feats.shape[3])))
+    # calculate ndvi
+    ndvi = (im[:,:,6]-im[:,:,0])/(im[:,:,6]+im[:,:,0])
 
-    plot_img_and_mask_recon(im_false, pred_false)
+    # for i in range(feats.shape[1]):
+    #     plot_img_and_mask_recon(im_false, feats[:,i,:,:].reshape((feats.shape[2],feats.shape[3])))
+
+    plot_img_and_mask_recon(im_false, ndvi)
 
     

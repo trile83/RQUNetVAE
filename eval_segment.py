@@ -25,17 +25,17 @@ def get_max_accuracy(acc_dict, alpha_range, sigma_range):
 
 if __name__ == '__main__':
 
-    unet_jaxony_dict_file = '/home/geoint/tri/github_files/unet_jaxony_dictionary_4-12.pickle'
-    unet_vae_rq_dict_file = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_4-12.pickle'
-    unet_rq_dict_file = '/home/geoint/tri/github_files/unet_RQ_dictionary_4-12.pickle'
+    unet_jaxony_dict_file = '/home/geoint/tri/github_files/unet_jaxony_dictionary_5-19.pickle'
+    unet_vae_rq_dict_file = '/home/geoint/tri/github_files/unet_vae_RQ_dictionary_5-19.pickle'
+    # unet_rq_dict_file = '/home/geoint/tri/github_files/unet_RQ_dictionary_5-19.pickle'
     
     # read the pickle object
     with open(unet_jaxony_dict_file, 'rb') as input_file:
         unet_jaxony_dict = pickle.load(input_file)
     with open(unet_vae_rq_dict_file, 'rb') as input_file:
         unet_vae_rq_dict = pickle.load(input_file)
-    with open(unet_rq_dict_file, 'rb') as input_file:
-        unet_rq_dict = pickle.load(input_file)
+    # with open(unet_rq_dict_file, 'rb') as input_file:
+    #     unet_rq_dict = pickle.load(input_file)
 
 
     # get max accuracy for each sigma
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     # visualization
 
-    sigma_range = np.arange(0,0.12,0.01)
+    sigma_range = np.arange(0,0.2,0.01)
     sigma_acc_unet_jaxony = []
     sigma_acc_unet_vae_rq = []
     sigma_acc_unet_rq = []
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     for i in sigma_range:
         sigma_acc_unet_jaxony.append(unet_jaxony_dict[i][0]['avg_balanced_accuracy'])
         sigma_acc_unet_vae_rq.append(unet_vae_rq_dict[i][0.5]['avg_balanced_accuracy'])
-        sigma_acc_unet_rq.append(unet_rq_dict[i][0.5]['avg_balanced_accuracy'])
+        # sigma_acc_unet_rq.append(unet_rq_dict[i][0.5]['avg_balanced_accuracy'])
         sigma_acc_unet_vae_rq_1.append(unet_vae_rq_dict[i][0.1]['avg_balanced_accuracy'])
         #sigma_acc_unet_vae_rq_2.append(unet_vae_rq_dict[i][0.2]['avg_balanced_accuracy'])
         #sigma_acc_unet_vae_rq_3.append(unet_vae_rq_dict[i][0.3]['avg_balanced_accuracy'])
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     for i in sigma_range:
         std_unet_jaxony.append(unet_jaxony_dict[i][0]['balanced_std'])
         std_unet_vae_rq.append(unet_vae_rq_dict[i][0.5]['balanced_std'])
-        std_unet_rq.append(unet_rq_dict[i][0.5]['balanced_std'])
+        # std_unet_rq.append(unet_rq_dict[i][0.5]['balanced_std'])
 
     sigma_acc_unet_jaxony = np.array(sigma_acc_unet_jaxony)
     sigma_acc_unet_vae_rq = np.array(sigma_acc_unet_vae_rq)

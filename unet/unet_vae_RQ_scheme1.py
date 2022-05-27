@@ -687,9 +687,9 @@ class UNet_VAE_RQ_scheme1(nn.Module):
                         c_I, d_in = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
                         c_I, d_in = c_I.cuda(), d_in.cuda() 
                         # Shrinkage:
-                        alpha = self.alpha
+                        # alpha = self.alpha
                         activation_method = "SoftShrink"
-                        d_in = RieszWaveletTruncation(d_in, alpha, activation_method)
+                        d_in = RieszWaveletTruncation(d_in, self.alpha, activation_method)
 
                         # Inverse wavelet:
                         f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, d_in, beta_I, psi_in)

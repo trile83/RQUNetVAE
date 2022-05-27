@@ -247,26 +247,26 @@ def train_net(net,
 
                     if unet_option == 'unet' or unet_option == 'unet_1':
                         masked_output = output
+                        kl_loss = torch.zeros((1)).cuda()
 
                     elif unet_option == 'simple_unet':
                         masked_output = output
+                        kl_loss = torch.zeros((1)).cuda()
                     else:
                         masked_output = output[3]
-                    #masked_output = output
+
+                        mu = output[1]
+                        logvar = output[2]
 
                     print("masked_output shape: ", masked_output.shape)
                     print("true mask shape: ", true_masks.shape)
 
-                    mu = output[1]
-                    logvar = output[2]
+                    
                     
                     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
                     #kl_loss = torch.sum(output[4])
                     print("kl loss: ", kl_loss)
                     loss_items['kl_loss'].append(kl_loss.detach().cpu())
-
-                    #loss = criterion(masked_output.float(), true_masks.float()) 
-                            #+ dice_loss(F.softmax(masked_output, dim=1).float(),true_masks.float(),multiclass=True) 
 
                     #recon_loss = torch.sum((masked_output - true_masks)**2)
                     recon_loss = criterion(masked_output, true_masks)

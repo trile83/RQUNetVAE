@@ -546,7 +546,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
 
         self.num_classes = num_classes
         self.segment = segment
-        self.alpha = alpha
+        #self.alpha = alpha
         self.in_channels = in_channels
         self.start_filts = start_filts
         self.depth = depth
@@ -565,7 +565,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
             shrink = True if i == 0 else False
             #shrink = True if i < depth-1 else False
 
-            down_conv = DownConv(ins, outs, segment=self.segment, alpha=self.alpha, pooling=pooling, batchnorm=batchnorm, dropout=dropout, shrink=shrink)
+            down_conv = DownConv(ins, outs, segment=self.segment, alpha=0.3, pooling=pooling, batchnorm=batchnorm, dropout=dropout, shrink=shrink)
             self.down_convs.append(down_conv)
 
         #Flatten
@@ -637,7 +637,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
 
         # calculate z, mu, and logvar
         z, mu, logvar = self.bottleneck(x_encoded)
-        z = self.act(self.fc3(z))
+        z = self.act(self.fc3(z.clone()))
         z = torch.reshape(z, x.shape)
 
         #print(self.down_convs)

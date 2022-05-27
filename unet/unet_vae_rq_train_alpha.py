@@ -560,7 +560,7 @@ class UpConv(nn.Module):
         return x
 
 
-class UNet_VAE_RQ_old_trainable(nn.Module):
+class UNet_VAE_RQ_trainable(nn.Module):
     def __init__(self, num_classes, segment, alpha, in_channels=3, depth=5, 
                  start_filts=64, up_mode='upsample', 
                  merge_mode='concat', enc_out_dim=1024, latent_dim=64):
@@ -575,7 +575,7 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
                 for transpose convolution or 'upsample' for nearest neighbour
                 upsampling.
         """
-        super(UNet_VAE_RQ_old_trainable, self).__init__()
+        super(UNet_VAE_RQ_trainable, self).__init__()
 
         if up_mode in ('transpose', 'upsample'):
             self.up_mode = up_mode
@@ -608,7 +608,7 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
 
         ## create alpha parameters in UNet architecture
         #self.alpha = Parameter(torch.tensor(0.0)) # create a tensor 0
-        self.alpha = Parameter(torch.tensor(0.0), requires_grad=True) # create a tensor out of alpha
+        self.alpha = Parameter(torch.tensor(0.0)) # create a tensor out of alpha
         self.alpha.data.uniform_(0, 1)
 
         self.down_convs = []
@@ -655,7 +655,7 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
         self.fc3 = nn.Linear(latent_dim, 262144)
         self.act = nn.ReLU()
 
-        #self.reset_params()
+        self.reset_params()
 
     @staticmethod
     def weight_init(m):

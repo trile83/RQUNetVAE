@@ -24,8 +24,9 @@ from torch.utils.data import Dataset
 from torch import optim
 from tqdm import tqdm
 
-from unet import UNet_VAE, UNet_VAE_old
-from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
+from unet import UNet_VAE, UNet_VAE_old, UNet_VAE_update_param, UNet_VAE_RQ_old_torch
+from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_trainable
+from unet.unet_vae_RQ_scheme1 import UNet_VAE_RQ_scheme1
 from utils.dice_score import dice_loss
 from evaluate import evaluate
 import os
@@ -101,6 +102,8 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             if img_data.shape == (256,256,3):
                 X_lst.append(img_data)
 
+
+
         X = np.array(X_lst)
         X = X/255
 
@@ -138,7 +141,7 @@ class satDataset(Dataset):
         #Y = label
         return {
             'image': X,
-            'mask': X
+            'mask': Y
         }
 
 def train_net(net,
@@ -158,8 +161,8 @@ def train_net(net,
     train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=130)
     images, labels = next(train_data_gen)
 
-    train_images = images[:50]
-    train_labels = labels[:50]
+    train_images = images[:20]
+    train_labels = labels[:20]
 
     val_images = images[100:102]
     val_labels = labels[100:102]
@@ -211,10 +214,13 @@ def train_net(net,
     loss_items['recon_loss'] = []
     loss_items['kl_loss'] = []
     loss_items['total_loss'] = []
+
+    min_valid_loss = np.inf
     for epoch in range(epochs):
         #get the network output
         net.train()
         epoch_loss = 0
+
 
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
@@ -231,17 +237,19 @@ def train_net(net,
                 print("image shape: ", images.shape)
                 #print("true mask shape: ", true_masks.shape)
 
-                with torch.cuda.amp.autocast(enabled=False):
+                #with torch.cuda.amp.autocast(enabled=True):
 
-                    output = net(images)
+                output = net(images)
 
-                    if unet_option == 'unet' or unet_option == 'unet_1':
-                        masked_output = output
+                if unet_option == 'unet' or unet_option == 'unet_jaxony':
+                    masked_output = output
+                    kl_loss = torch.zeros((1)).cuda()
 
-                    elif unet_option == 'simple_unet':
-                        masked_output = output
-                    else:
-                        masked_output = output[3]
+                elif unet_option == 'simple_unet':
+                    masked_output = output
+                    kl_loss = torch.zeros((1)).cuda()
+                else:
+                    masked_output = output[0]
                     #masked_output = output
 
                     print("masked_output shape: ", masked_output.shape)
@@ -249,36 +257,35 @@ def train_net(net,
 
                     mu = output[1]
                     logvar = output[2]
-                    
+                
                     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-                    #kl_loss = torch.sum(output[4])
-                    print("kl loss: ", kl_loss)
-                    loss_items['kl_loss'].append(kl_loss.detach().cpu())
+                #kl_loss = torch.sum(output[4])
+                print("kl loss: ", kl_loss)
+                loss_items['kl_loss'].append(kl_loss.detach().cpu())
 
-                    #loss = criterion(masked_output.float(), true_masks.float()) 
-                            #+ dice_loss(F.softmax(masked_output, dim=1).float(),true_masks.float(),multiclass=True) 
+                #recon_loss = criterion(masked_output, true_masks)
+                recon_loss = torch.sum((masked_output-true_masks)**2)/(256*256)
+                loss_items['recon_loss'].append(recon_loss.detach().cpu())
+                print("reconstruction loss: ", recon_loss)
 
-                    #recon_loss = torch.sum((masked_output - true_masks)**2)
-                    recon_loss = criterion(masked_output, true_masks)
-                    loss_items['recon_loss'].append(recon_loss.detach().cpu())
-                    print("reconstruction loss: ", recon_loss)
-
-
-                    #loss = recon_loss
-                    loss = recon_loss + kl_loss
-                    loss_items['total_loss'].append(loss.detach().cpu())
-                    print("total loss: ", loss)
+                scaled_kl_loss = kl_loss * 1
+                #loss = recon_loss
+                net.tau += 1
+                print('net tau: ', net.tau)
+                loss = recon_loss + scaled_kl_loss
+                loss_items['total_loss'].append(loss.detach().cpu())
+                print("total loss: ", loss)
 
                 optimizer.zero_grad()
+                #loss.backward(retain_graph=True)
                 loss.backward()
+
+                #nn.utils.clip_grad_norm_(net.parameters(), 1)
                 optimizer.step()
 
-                #for p in net.parameters():
-                    #print(p)
-
-                #grad_scaler.scale(loss).backward()
-                #grad_scaler.step(optimizer)
-                #grad_scaler.update()
+                # grad_scaler.scale(loss).backward()
+                # grad_scaler.step(optimizer)
+                # grad_scaler.update()
 
                 pbar.update(images.shape[0])
                 global_step += 1
@@ -290,38 +297,61 @@ def train_net(net,
                 })
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
 
-                # Evaluation round
-                division_step = (n_train // (10 * batch_size))
-                if division_step > 0:
-                    if global_step % division_step == 0:
-                        histograms = {}
-                        for tag, value in net.named_parameters():
-                            tag = tag.replace('/', '.')
-                            #histograms['Weights/' + tag] = wandb.Histogram(value.data.cpu())
-                            #histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
-
-                        #val_score = evaluate(net, val_loader, device)
-                        #scheduler.step(val_score)
-
-                        #logging.info('Validation loss score: {}'.format(val_score))
-                        experiment.log({
-                            'learning rate': optimizer.param_groups[0]['lr'],
-                            #'validation loss': val_score,
-                            #'images': wandb.Image(images[0,:,:,:2].cpu()),
-                            'masks': {
-                                #'true': wandb.Image(true_masks[0].float().cpu()),
-                                #'pred': wandb.Image(torch.softmax(masked_output, dim=1).argmax(dim=1)[0].float().cpu())
-                            },
-                            'step': global_step,
-                            'epoch': epoch,
-                            **histograms
-                        })
                 
-        if save_checkpoint:
-            Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_{alpha}_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
-            #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
-            logging.info(f'Checkpoint {epoch + 1} saved!')
+            # Validation
+            valid_loss = 0.0
+            net.eval()     # Optional when not using Model Specific layer
+            for batch_val in val_loader:
+                # Transfer Data to GPU if available
+                images_val = batch_val['image']
+                true_masks_val = batch_val['mask']
+
+                images_val = images_val.to(device=device, dtype=torch.float32)
+                true_masks_val = true_masks_val.to(device=device, dtype=torch.long)
+
+                #print("true mask shape: ", true_masks.shape)
+
+                images_val = torch.reshape(images_val, (batch_size,3,256,256))
+                true_masks_val = torch.reshape(true_masks_val, (batch_size,3,256,256))
+
+                # Forward Pass
+                output_val = net(images_val)
+
+                if unet_option == 'unet' or unet_option == 'unet_jaxony':
+                    output_val_segment = output_val
+                    loss = criterion(output_val_segment, true_masks_val)
+                    kl_loss_val = torch.zeros((1)).cuda()
+                elif unet_option == 'simple_unet':
+                    output_val_segment = output_val
+                    loss = criterion(output_val_segment, true_masks_val)
+                    kl_loss_val = torch.zeros((1)).cuda()
+                else:
+                    output_val_segment = output_val[0]
+
+                    mu_val = output_val[1]
+                    logvar_val = output_val[2]
+                    kl_loss_val = -0.5 * torch.sum(1 + logvar_val - mu_val.pow(2) - logvar_val.exp())
+
+                scaled_kl_val = kl_loss_val*1
+            
+                # Find the Loss
+                recon_loss_val = criterion(output_val_segment, true_masks_val)
+                loss = recon_loss_val + scaled_kl_val
+                #loss = recon_loss_val
+                # Calculate Loss
+                valid_loss += loss.item()
+
+            print(f'Epoch {epoch+1} \t\t Training Loss: {epoch_loss / len(train_loader)} \t\t Validation Loss: {valid_loss / len(val_loader)}')
+                
+            if min_valid_loss > valid_loss:
+                print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{valid_loss:.6f}) \t Saving The Model')
+                min_valid_loss = valid_loss
+                
+                # print("valid_loss: ", valid_loss)
+                # Saving State Dict
+                Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
+                torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_va059_5-28_denoise.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+
 
     #plt.plot(loss_items['total_loss'])
     plt.plot(loss_items['recon_loss'], 'r--', loss_items['kl_loss'], 'b--', loss_items['total_loss'], 'g')
@@ -342,23 +372,33 @@ if __name__ == '__main__':
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
     
-    alpha = 0.0
+    alpha = 0.3
     segment = False
-    unet_option = "unet_vae_RQ_trainable"
+    class_num = 3
+    unet_option = "unet_vae_old"
 
     if unet_option == 'unet_vae_1':
-        net = UNet_VAE(3)
+        net = UNet_VAE(class_num)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3)
+        net = UNet_VAE_old(class_num, segment)
     elif unet_option == 'unet_vae_RQ_old':
-        net = UNet_VAE_RQ_old(3, alpha)
+        net = UNet_VAE_RQ_old(class_num, alpha)
     elif unet_option == 'unet_vae_RQ_trainable':
-        net = UNet_VAE_RQ_old_trainable(3, segment, alpha)
+        net = UNet_VAE_RQ_trainable(class_num, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_update_param':
+        net = UNet_VAE_update_param(class_num, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_scheme1':
+        net = UNet_VAE_RQ_scheme1(class_num, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_torch':
+        net = UNet_VAE_RQ_old_torch(class_num, segment, alpha)
 
     ### check parameters
-    for name, param in net.named_parameters():
-        print(name)
+    # for name, param in net.named_parameters():
+    #     if name == 'tau':
+    #         print(name)
+    #         print(param)
 
+        
     #bind the network to the gpu if cuda is enabled
     if use_cuda:
         net.cuda()
@@ -375,8 +415,8 @@ if __name__ == '__main__':
 
     try:
         train_net(net=net,
-                  epochs=10,
-                  batch_size=1,
+                  epochs=2,
+                  batch_size=2,
                   learning_rate=1e-4,
                   device=device,
                   img_scale=1,

@@ -188,6 +188,9 @@ class UNet_VAE_old(nn.Module):
         self.down_convs = []
         self.up_convs = []
 
+        #self.tau = nn.Parameter(torch.rand(1))
+        self.tau = torch.tensor((0.0))
+
         # create the encoder pathway and add to a list
         for i in range(depth):
             ins = self.in_channels if i == 0 else outs
@@ -261,6 +264,9 @@ class UNet_VAE_old(nn.Module):
         # for i, module in enumerate(self.down_convs):
         #     x, before_pool = module(x)
         #     encoder_outs.append(before_pool)
+
+        #self.tau += 1
+        #print('tau: ', self.tau)
 
         print("x shape: ", x.shape)
 

@@ -13,3 +13,4 @@ from .unet_rq import UNet_RQ
 from .unet_vae_rq_activation import UNet_VAE_RQ
 from .stacked_unet import UNet_VAE_Stacked
 from .unet_vae_update_param import UNet_VAE_update_param
+from .RQUnet_VAE_scheme1_Pareto import RQUNet_VAE_scheme1_Pareto

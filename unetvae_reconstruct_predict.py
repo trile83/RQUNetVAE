@@ -12,8 +12,8 @@ from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 
 from unet import UNet_VAE
-from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
-from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
+from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_torch
+from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, RQUNet_VAE_scheme1_Pareto
 from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2, UNet_VAE_Stacked
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
@@ -27,8 +27,8 @@ use_cuda = True
 im_type = image_path[30:38]
 print('image type: ', im_type)
 segment=False
-alpha = 0.01
-unet_option = 'unet_vae_stacked' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
+alpha = 0.0
+unet_option = 'rqunet_vae_scheme1_pareto' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
 image_option = "clean" # "clean" or "noisy"
 
 ##################################
@@ -176,8 +176,8 @@ if __name__ == '__main__':
         net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
-    elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(3,alpha)
+    # elif unet_option == 'unet_vae_RQ_allskip_trainable':
+    #     net = UNet_VAE_RQ_old_trainable(3,alpha)
     elif unet_option == 'unet_vae_RQ_torch':
         net = UNet_VAE_RQ_old_torch(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme3':
@@ -188,6 +188,9 @@ if __name__ == '__main__':
         net = UNet_VAE_RQ_scheme2(3, segment, alpha)
     elif unet_option == 'unet_vae_stacked':
         net = UNet_VAE_Stacked(3, segment, alpha, device, model_sentinel_saved)
+
+    elif unet_option == 'rqunet_vae_scheme1_pareto':
+        net = RQUNet_VAE_scheme1_Pareto(3, segment, alpha)
 
     
     #logging.info(f'Loading model {args.model}')

@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 from skimage import exposure
 import cv2
 import matplotlib.colors as pltc
-from sklearn.metrics import accuracy_score, balanced_accuracy_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, precision_score, recall_score
 from sklearn.metrics import classification_report, confusion_matrix
 import itertools
 
 from unet import UNet_VAE, UNet_RQ
-from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
+from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test, UNet_VAE_RQ
 from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2, UNet_VAE_Stacked
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_2, plot_img_and_mask_4
@@ -48,8 +48,8 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     # if np.max(y_true)>2:
     #     y_true[y_true > 2] = 2
 
-    print('y true label: ', np.unique(y_true))
-    print('y pred label: ', np.unique(y_pred))
+    # print('y true label: ', np.unique(y_true))
+    # print('y pred label: ', np.unique(y_pred))
 
     #print("label unique values",np.unique(y_true))
     #print("prediction unique values",np.unique(y_pred))
@@ -58,7 +58,11 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     accuracy = accuracy_score(y_true, y_pred, normalize=True, sample_weight=None)
     balanced_accuracy = balanced_accuracy_score(y_true, y_pred, sample_weight=None)
 
-    print(classification_report(y_true, y_pred))
+    f1 = f1_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred)
+    recall = recall_score(y_true, y_pred)
+
+    # print(classification_report(y_true, y_pred))
 
     ## get confusion matrix
     con_mat = confusion_matrix(
@@ -73,7 +77,7 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
 
     where_are_NaNs = np.isnan(con_mat)
     con_mat[where_are_NaNs] = 0
-    return con_mat, accuracy, balanced_accuracy
+    return con_mat, accuracy, round(balanced_accuracy,3), round(f1,3), round(precision,3), round(recall,3)
 
 
 def plot_confusion_matrix(cm, class_names=['a', 'b', 'c'], name=''):
@@ -282,8 +286,8 @@ if __name__ == '__main__':
         net = UNet_VAE_old(2, segment)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(2, alpha)
-    elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(2,alpha)
+    # elif unet_option == 'unet_vae_RQ_allskip_trainable':
+    #     net = UNet_VAE_RQ_old_trainable(2,alpha)
     elif unet_option == 'unet_vae_RQ_torch':
         net = UNet_VAE_RQ_old_torch(2, segment, alpha)
         #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
@@ -377,12 +381,16 @@ if __name__ == '__main__':
 
     # baseline plot
 
-    base_cnf_matrix, base_accuracy, base_balanced_accuracy = confusion_matrix_func(
+    base_cnf_matrix, base_accuracy, base_balanced_accuracy, base_f1, base_precision, base_recall = confusion_matrix_func(
             y_true=label, y_pred=baseline_mask, nclasses=len(classes), norm=True
         )
 
     print("Baseline Overall Accuracy: ", base_accuracy)
     print("Baseline Balanced Accuracy: ", base_balanced_accuracy)
+    print("Baseline F1: ", base_f1)
+    print("Baseline Precision: ", base_precision)
+    print("Baseline Recall: ", base_recall)
+
 
     plot_confusion_matrix(base_cnf_matrix, class_names=classes, name="base")
 
@@ -390,12 +398,16 @@ if __name__ == '__main__':
 
     plot_pred_only(baseline_mask,base_pred_name, base_balanced_accuracy)
 
-    cnf_matrix, accuracy, balanced_accuracy = confusion_matrix_func(
+    cnf_matrix, accuracy, balanced_accuracy, f1, precision, recall = confusion_matrix_func(
             y_true=label, y_pred=mask, nclasses=len(classes), norm=True
         )
 
     print("Overall Accuracy: ", accuracy)
     print("Balanced Accuracy: ", balanced_accuracy)
+    print("F1 Score: ", f1)
+    print("Precision: ", precision)
+    print("Recall: ", recall)
+
     plot_confusion_matrix(cnf_matrix, class_names=classes, name='rqunet_vae')
     # if im_type == 'sentinel':
     #     plot_img_and_mask_4(img, label, mask)

@@ -195,7 +195,7 @@ def plot_pred_only(mask_pred, image_name, accuracy=0):
 
      # lets plot some information here
     #fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(60, 60), sharex=True, sharey=True)
-    plt.title(str("Prediction "+ str(accuracy)))
+    # plt.title(str("Prediction "+ str(accuracy)))
     plt.imshow(mask_pred, cmap=colormap)
     # create a patch (proxy artist) for every color 
     patches = [mpatches.Patch(color=colors[i], label="{l}".format(l=classes[i])) for i in range(len(classes))]

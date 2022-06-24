@@ -304,7 +304,6 @@ class RieszQuincunx(nn.Module):
 
         # Step 1. Riesz Quincunx wavelet scaling funcs:
         # Output: beta_I, beta_D_I, psi_in, psi_D_in
-            
         # Quincunx wavelet:    
         #Scales = 3      # 0, 1, 2, 3
         #Height = 256    # 128
@@ -314,8 +313,8 @@ class RieszQuincunx(nn.Module):
         # Step 2.
         f = x
 
-        print("input tensor shape: ", f.shape)
-        print("alpha value: ", self.alpha)
+        #print("input tensor shape: ", f.shape)
+        #print("alpha value: ", self.alpha)
 
         height = f.size(2)
         width = f.size(3)
@@ -346,6 +345,30 @@ class RieszQuincunx(nn.Module):
         f_re = f_re.cuda()
 
         return f_re, c_I, d_in
+
+
+# Generalized Double Pareto Shrinkage: -----------------------------------------
+
+# Statistical packages:
+from torch.distributions import Gamma, Normal
+
+# Functions:
+def Pi_func(a, s, sigma, eta):
+    p = s.shape[0]
+    #print('p ', p)
+    Pi_a = torch.pow(1/a-1, p)
+    #print('Pi_a before: ', Pi_a)
+    for j in range(p):
+        Pi_a = Pi_a * torch.pow(1 + torch.abs(s[j])/(sigma*eta) , -1/a)
+
+    return Pi_a
+
+def Kappa_func(e, s, sigma, alpha):
+    p = s.shape[0]
+    Kappa_e = torch.pow(1/e-1, -p)
+    for j in range(p):
+        Kappa_e = Kappa_e * torch.pow(1 + torch.abs(s[j])/(sigma*(1/e-1)), -(alpha+1))
+    return Kappa_e
 
 # Create Unet VAE 
 # 3x3 convolution module for each block
@@ -532,6 +555,8 @@ class RQUNet_VAE_scheme1_Pareto(nn.Module):
         self.scale = 3
         self.gamma = 1.2
 
+        self.N = 3
+
         # create the encoder pathway and add to a list
         for i in range(depth):
             ins = self.in_channels if i == 0 else outs
@@ -597,7 +622,7 @@ class RQUNet_VAE_scheme1_Pareto(nn.Module):
             beta_I, beta_D_I, psi_i, psi_D_i = beta_I.cuda(), beta_D_I.cuda(), psi_i.cuda(), psi_D_i.cuda()
 
             # Riesz Quincunx wavelet:
-            N = 3
+            N = self.N
             psi_in, psi_D_in = RieszQuincunxWaveletFuncs(N, psi_i, psi_D_i)
             psi_in, psi_D_in = psi_in.cuda(), psi_D_in.cuda()
         
@@ -668,9 +693,15 @@ class RQUNet_VAE_scheme1_Pareto(nn.Module):
         # Step 3 - Riesz-Quincunx truncation for skip-connecting signals (alpha):
         s_smooth_dict = {} # new list for shrinkage tensors
 
+        d_in_dict = {}
+        size_lst = [256,128,64,32,16]
+
+        
         ## smoothing operations
         for i in range(len(s_dict)):
             f = s_dict[i]
+            #print('f shape: ', f.shape)
+            tensor_size = size_lst[i]
             if i not in self.beta_D_I_dict.keys():
                 s_smooth_dict[i] = s_dict[i]
             else:
@@ -681,22 +712,30 @@ class RQUNet_VAE_scheme1_Pareto(nn.Module):
                 psi_D_in = self.psi_D_in_dict[i]
 
                 f_re = torch.zeros(f.shape)
+                #d_in_tensor = torch.zeros((f_re.size(0),f_re.size(1),self.scale+1,self.N+1,tensor_size,tensor_size))
+                d_in_dict[i] = torch.zeros((f_re.size(0),f_re.size(1),self.scale+1,self.N+1,tensor_size,tensor_size))
                 # Forward Riesz-Quincunx wavelet:
                 for k in range(f_re.size(0)):
                     for l in range(f_re.size(1)):
-                        # beta in Pareto equation 1 is d_in
+                        # beta in Pareto equation 1 is 
+
                         c_I, d_in = RieszQuincunxWaveletTransform_Forward(f[k,l,:,:], beta_D_I, psi_D_in)
                         c_I, d_in = c_I.cuda(), d_in.cuda() 
+
+                        # print('d_in.shape: ', d_in.shape)
                         # Shrinkage:
                         # alpha = self.alpha
                         activation_method = "SoftShrink"
                         d_in = RieszWaveletTruncation(d_in, self.alpha, activation_method)
+                        #d_in_tensor[k,l,:,:,:,:] = d_in
+                        d_in_dict[i][k,l,:,:,:,:] = d_in
+                        
 
                         # Inverse wavelet:
                         f_re[k,l,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, d_in, beta_I, psi_in)
 
                 f_re = f_re.cuda()        
-            
+                # d_in_dict[i] = d_in_tensor
                 s_smooth_dict[i] = f_re
 
         # Step 4 - decoder:
@@ -711,7 +750,186 @@ class RQUNet_VAE_scheme1_Pareto(nn.Module):
         x = self.conv_final(x)
         x_recon = F.relu(x)
 
+# Start - Pareto Shrinkage: --------------------------------------------
+        # print('d_in_dict i shape: ', d_in_dict[0].shape)
+        
+        # # equation 3
+        # iteration = 10
+        # s_new_dict = d_in_dict
+        # tau_dict = {}
+        # for i in range(len(s_dict)):
+        #     f = s_dict[i]
+        #     tensor_size = size_lst[i]
+        #     if i in self.beta_D_I_dict.keys():
+        #         tau_dict[i] = torch.ones((f.size(0),f.size(1),self.scale+1,self.N+1,tensor_size,tensor_size))
+        
+        # for t in range(iteration):
+        #     for i in s_new_dict.keys():
+
+        #         # tau_i = tau_dict[i]
+        #         s_i_unflat = s_new_dict[i]
+        #         print("s_i_unflat shape: ", s_i_unflat.shape)
+
+        #         tau_i = self.flatten(tau_dict[i])
+        #         s_i = self.flatten(s_new_dict[i])
+
+        #         Wy_i = d_in_dict[i]
+
+        #         print("Wy_i shape: ", Wy_i.shape)
+        #         p = Wy_i.shape[1]
+        #         print('p: ',p)
+
+        #         Wy_i = self.flatten(Wy_i)
+
+        #         a = 0.5*torch.sum(torch.pow(Wy_i-s_i,2)) + 0.5*torch.sum(torch.div(1,tau_i)*torch.pow(s_i,2))
+
+        #         sigma2_inv = Gamma(torch.tensor(p-0.5), torch.tensor(a))
+        #         sigma2 = 1/sigma2_inv.sample()
+        #         sigma = torch.sqrt(sigma2)
+
+        #         print('sigma: ', sigma)
+
+        #         tau = torch.ones(p,1)
+        #         lamb = torch.ones(p,1)
+        #         tau_inv = torch.zeros(p,1)
+        #         alpha = 1
+        #         eta = 1
+        #         for j in range(p):
+        #             # Equation 4: change tau in numpy to torch:
+        #             # zero mask
+                    
+        #             m = sigma*lamb[j,:]
+        #             print("m shape: ", m.shape)
+        #             n = self.flatten(s_i_unflat[:,j,:,:,:,:])
+        #             print("n shape: ", n.shape)
+        #             mask_n = (n > 0)
+        #             mean = m/n[mask_n]
+        #             print("mean shape: ", mean.shape)
+        #             print("mean: ", mean)
+        #             tau_inv[j] = torch.tensor(np.random.wald(mean, torch.pow(lamb[j],2)))
+        #             tau[j] = 1/tau_inv[j]
+
+
+
+# Start - Pareto Shrinkage: --------------------------------------------
+        
+        # pic 1, all subbands of Unet's scale 1:
+        # Wy = self.flatten(d_in_dict[0][0,:,:,:,:,:]) 
+        #Wy = d_in_dict[0][0,:,:,:,:,:]
+        #print('Wy shape: ', Wy.shape)
+
+
+        Wy = self.flatten(d_in_dict[0][:,0,0,0,:,:])
+        
+        s = Wy
+        p = Wy.shape[1]
+        Wy = torch.reshape(Wy, (p,1))
+        print('Wy shape:', Wy.shape)
+        s = torch.reshape(s, (p,1))
+        print('p: ',p)
+        #print('s shape: ', s.shape)
+        tau = torch.ones(p,1)
+        lamb = torch.ones(p,1)
+
+        tau_inv = torch.zeros(p,1)
+
+        alpha = 1
+        eta = 1
+
+        iteration = 10 
+
+        #p = 100
+        #a = 23
+        
+        # Iteration:
+        for t in range(iteration):
+            
+            # Equation 3 -- sample sigma: 
+            # If X ~ Gamma(alpha, beta), then 1/X ~ InvGamma(alpha, beta)
+            a = 0.5 * torch.sum(torch.pow(Wy - s,2)) + 0.5 * torch.sum(torch.div(1,tau) * torch.pow(s,2))
+            sigma2_inv = Gamma(torch.tensor(p-0.5), torch.tensor(a))
+            sigma2 = 1/sigma2_inv.sample()
+            sigma = torch.sqrt(sigma2)
+
+            
+            # Equation 4-6 -- sample tau, s, lambda 
+            # np.random.wald(3, 2, 100000) => inverse Gaussian is defined in numpy, not Pyrorch
+            # https://numpy.org/doc/stable/reference/random/generated/numpy.random.wald.html
+            for j in range(p):
+                #print('sigma: ', sigma)
+                # Equation 4: change tau in numpy to torch:
+                m = sigma*lamb[j]
+                print("m: ", m)
+                n = s[j]
+                print("n: ", n)
+                eps=1e-16
+                mean = m/(n+eps)
+                #print("mean shape: ", mean.shape)
+                print("mean: ", mean)
+
+                # got the shape of s[j] - flatten
+                #tau_inv[j] = np.random.wald(sigma*lamb[j]/s[j], torch.pow(lamb[j],2))
+                tau_inv[j] = torch.tensor(np.random.wald(torch.sqrt(torch.pow(mean,2)).cpu().numpy(), torch.pow(lamb[j],2).cpu().numpy()))
+                tau[j] = 1/tau_inv[j]
+
+                print('tau j: ', tau[j])
+                print('Wy j: ', Wy[j])
+               
+                # Equation 5:
+                o = tau[j]/(tau[j]+1)*Wy[j]
+                print('o: ', o)
+                s_temp = Normal(torch.tensor(tau[j]/(tau[j]+1)*Wy[j]), torch.tensor(sigma2*tau[j]/(tau[j]+1)))
+                s[j] = s_temp.sample()
+                #print('s j: ', s[j])
+
+                # Equation 6:
+                lamb_temp = Gamma(torch.tensor(alpha+1, dtype = torch.float32), torch.tensor(eta + torch.abs(s[j])/sigma, dtype = torch.float32))
+                lamb[j] = lamb_temp.sample()
+                print('lamb j: ', lamb[j])
+
+            # Equation 9, 10 -- create weights w, v
+            # Equal grid {a1,...,aN}, {e1,...,eN} in(0,1):
+            # N = 10
+            # a = torch.linspace(0+1/N, 1-1/N, steps=N) 
+            # e = torch.linspace(0+1/N, 1-1/N, steps=N)
+
+            # Pi_a = torch.zeros((N,1))
+            # Kappa_e = torch.zeros((N,1))
+            
+            # # Pi_a, Kappa_e:
+            # for l in range(N):
+            #     Pi_a[l] = Pi_func(a[l], s, sigma, eta)
+            #     Kappa_e[l] = Kappa_func(e[l], s, sigma, alpha)      
+            
+            # # w, v:
+            # w = torch.zeros((N,1))
+            # v = torch.zeros((N,1))
+            # for l in range(N):
+            #     print('Pi_a l  ', Pi_a[l])
+            #     w[l] = Pi_a[l] / torch.sum(Pi_a)
+            #     print('w l ',w[l])
+            #     v[l] = Kappa_e[l] / torch.sum(Kappa_e)
+
+            # print('w sum: ', torch.sum(w))
+
+            # w = w.cpu().numpy()
+            # w = w.reshape((w.shape[0]))
+
+            # # Equation 7, 8 -- sample alpha, eta:
+            # a_temp = torch.tensor(np.random.choice(a.cpu().numpy(), size = 1, replace = False, p = w))
+            # alpha = 1/a_temp - 1
+
+            # e_temp = torch.tensor(np.random.choice(e.cpu().numpy(), size = 1, replace = False, p = w))
+            # eta = 1/e_temp - 1
+
+# End --------------------------------------------------------------------------
+
+
+        
+
+
+
         # Step 5 - KL Loss func: 
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-        return x, mu, logvar, x_recon, kl_loss
+        return x, mu, logvar, x_recon, kl_loss, Wy, s

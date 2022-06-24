@@ -125,19 +125,26 @@ def predict_img(net,
 
         if unet_option == 'unet':
             output = output
+            return output.cpu()
         elif unet_option=='unet_vae_stacked':
             output = output[1]
+            return output.cpu()
         elif unet_option == 'unet_vae_RQ_scheme3':
             err = output[5]
             output = output[3]
             print("relative error: ", err)
             plt.plot(err.cpu())
             plt.show()
-        else:
+
+            return output.cpu()
+        elif unet_option == 'rqunet_vae_scheme1_pareto':
+            s = output[6]
+            Wy = output[5]
             output = output[3]
 
+            return output.cpu(), s.cpu().numpy(), Wy.cpu().numpy()
 
-    return output.cpu()
+    
 
 
 def get_args():
@@ -210,18 +217,32 @@ if __name__ == '__main__':
     logging.info('Model loaded!')
     logging.info(f'\nPredicting image {image_path} ...')
 
-    mask = predict_img(net=net,
+
+    if unet_option == 'rqunet_vae_scheme1_pareto':
+        mask, s, Wy = predict_img(net=net,
+                        filepath=image_path,
+                        scale_factor=1,
+                        out_threshold=0.5,
+                        device=device)
+    else:
+        mask = predict_img(net=net,
                         filepath=image_path,
                         scale_factor=1,
                         out_threshold=0.5,
                         device=device)
 
-    out_files = 'out/predict_va_vae_recon_epoch1'
-    im_out_files = 'out/img'
+    x_range = np.arange(65536)
+    plt.plot(s, x_range, color='blue', label = 's')
+    plt.plot(Wy, x_range, color='red', label = 'Wy')
+    plt.legend()
+    plt.show()
+
+    # out_files = 'out/predict_va_vae_recon_epoch1'
+    # im_out_files = 'out/img'
     
-    if not args.no_save:
-        out_filename = out_files
-        logging.info(f'Mask saved to {out_filename}')
+    # if not args.no_save:
+    #     out_filename = out_files
+    #     logging.info(f'Mask saved to {out_filename}')
 
     mask = tensor_to_jpg(mask)
     if image_option=='clean':

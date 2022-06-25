@@ -58,11 +58,17 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     accuracy = accuracy_score(y_true, y_pred, normalize=True, sample_weight=None)
     balanced_accuracy = balanced_accuracy_score(y_true, y_pred, sample_weight=None)
 
-    f1 = f1_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred)
-    recall = recall_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred, average=None)
+    precision = precision_score(y_true, y_pred, average=None)
+    recall = recall_score(y_true, y_pred, average=None)
 
     # print(classification_report(y_true, y_pred))
+
+    f1 = np.around(f1, 3)
+    precision = np.around(precision, 3)
+    recall = np.around(recall, 3)
+
+    #print(f1)
 
     ## get confusion matrix
     con_mat = confusion_matrix(
@@ -77,7 +83,7 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
 
     where_are_NaNs = np.isnan(con_mat)
     con_mat[where_are_NaNs] = 0
-    return con_mat, accuracy, round(balanced_accuracy,3), round(f1,3), round(precision,3), round(recall,3)
+    return con_mat, accuracy, round(balanced_accuracy,3), f1, precision, recall
 
 
 def plot_confusion_matrix(cm, class_names=['a', 'b', 'c'], name=''):
@@ -103,7 +109,7 @@ def plot_confusion_matrix(cm, class_names=['a', 'b', 'c'], name=''):
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     #plt.savefig('/home/geoint/tri/nasa_senegal/confusion_matrix/{}_chm_int_cfn_matrix.png'.format(label_name[:-4]))
-    conf_mat_name = '/home/geoint/tri/github_files/results_paper1/image_1/conf_mat_{}_5-18.png'.format(name)
+    conf_mat_name = '/home/geoint/tri/github_files/results_paper1/image_1/{}_conf_mat.png'.format(name)
     
     plt.savefig(conf_mat_name, bbox_inches='tight')
     
@@ -168,15 +174,17 @@ def tensor_to_jpg(tensor):
 #predict image
 def predict_img(net,
                 filepath,
+                img,
                 device,
                 scale_factor=1,
                 out_threshold=0.5):
     net.eval()
 
-    if image_option=='clean':
-        img = jpg_to_tensor(filepath)[0] ## clean image
-    elif image_option=='noisy':
-        img = jpg_to_tensor(filepath)[1] ## noisy image
+    # if image_option=='clean':
+    #     img = jpg_to_tensor(filepath)[0] ## clean image
+    # elif image_option=='noisy':
+    #     img = jpg_to_tensor(filepath)[1] ## noisy image
+
     img = img.to(device=device, dtype=torch.float32)
 
     #print("img shape: ", img.shape)
@@ -253,14 +261,17 @@ if __name__ == '__main__':
     #image_path = '/home/geoint/tri/sentinel/train/sat/2016105_10.tif'
     #mask_true_path = '/home/geoint/tri/sentinel/train/map/nlcd_2016105_10.tif'
 
-    image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
-    mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
+    # image_path = '/home/geoint/tri/va059/train/sat/number34823.TIF'
+    # mask_true_path = '/home/geoint/tri/va059/train/map/number34823.TIF'
 
     # image_path = '/home/geoint/tri/va059/train/sat/number13458.TIF'
     # mask_true_path = '/home/geoint/tri/va059/train/map/number13458.TIF'
 
     # image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
     # mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
+
+    image_path = '/home/geoint/tri/pa101/test/sat/number13376.TIF'
+    mask_true_path = '/home/geoint/tri/pa101/test/map/number13376.TIF'
 
     use_cuda = True
     #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -315,38 +326,21 @@ if __name__ == '__main__':
     net_1 = UNet_test(2)
     net_1.to(device=device)
     net_1.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
-    baseline_mask = predict_img(net=net_1,
-                        filepath=image_path,
-                        scale_factor=1,
-                        out_threshold=0.5,
-                        device=device)
-
     
 
+    ###
+    classes = ['Tree', 'Concrete']  # 6-Cloud not present
+    colors = ['forestgreen','orange']
+    colormap = pltc.ListedColormap(colors)
 
-    #for i, filename in enumerate(in_files):
-    logging.info(f'\nPredicting image {image_path} ...')
-
-    mask = predict_img(net=net,
-                        filepath=image_path,
-                        scale_factor=1,
-                        out_threshold=0.5,
-                        device=device)
-
-
-    #out_files = 'out/predict_va_softshrink_all_0.02.tif'
-    # out_files = 'out/predict_va_unet_epoch40_new.tif'
-    
-    # out_filename = out_files
-    # logging.info(f'Mask saved to {out_files}')
-    
     ## get image
     if image_option=='clean':
         img = jpg_to_tensor(image_path)[0]
     else:
         img = jpg_to_tensor(image_path)[1]
-    img = tensor_to_jpg(img)
 
+
+    img_1 = tensor_to_jpg(img)
 
     ## get ground truth label
     naip_fn = mask_true_path
@@ -360,15 +354,10 @@ if __name__ == '__main__':
     label[label == 2] = 1
     label[label == 3] = 1
 
-    print(np.unique(label))
-
-    classes = ['Tree', 'Concrete']  # 6-Cloud not present
-    colors = ['forestgreen','orange']
-    colormap = pltc.ListedColormap(colors)
-
+    #print(np.unique(label))
 
     image_name = '/home/geoint/tri/github_files/results_paper1/image_1/input_image.png'
-    plt.imshow(img)
+    plt.imshow(img_1)
     plt.axis('off')
     plt.savefig(image_name, bbox_inches='tight')
     plt.show()
@@ -379,42 +368,114 @@ if __name__ == '__main__':
     plt.savefig(label_name, bbox_inches='tight')
     plt.show()
 
-    # baseline plot
 
-    base_cnf_matrix, base_accuracy, base_balanced_accuracy, base_f1, base_precision, base_recall = confusion_matrix_func(
-            y_true=label, y_pred=baseline_mask, nclasses=len(classes), norm=True
-        )
+    #for i, filename in enumerate(in_files):
+    logging.info(f'\nPredicting image {image_path} ...')
 
-    print("Baseline Overall Accuracy: ", base_accuracy)
-    print("Baseline Balanced Accuracy: ", base_balanced_accuracy)
-    print("Baseline F1: ", base_f1)
-    print("Baseline Precision: ", base_precision)
-    print("Baseline Recall: ", base_recall)
+    iteration = 20
 
+    # arrays for typical UNet results
+    base_balanced_acc_arr = np.zeros((iteration))
+    base_f1_arr = np.zeros((iteration,2))
+    base_precision_arr = np.zeros((iteration,2))
+    base_recall_arr = np.zeros((iteration,2))
+
+    ## arrays for RQUNet-VAE results
+    balanced_acc_arr = np.zeros((iteration))
+    f1_arr = np.zeros((iteration, 2))
+    precision_arr = np.zeros((iteration,2))
+    recall_arr = np.zeros((iteration,2))
+
+
+    for i in range(iteration):
+
+        baseline_mask = predict_img(net=net_1,
+                        filepath=image_path,
+                        img = img,
+                        scale_factor=1,
+                        out_threshold=0.5,
+                        device=device)
+
+        mask = predict_img(net=net,
+                            filepath=image_path,
+                            img = img,
+                            scale_factor=1,
+                            out_threshold=0.5,
+                            device=device)
+        
+        # baseline plot
+
+        base_cnf_matrix, base_accuracy, base_balanced_accuracy, base_f1, base_precision, base_recall = confusion_matrix_func(
+                y_true=label, y_pred=baseline_mask, nclasses=len(classes), norm=True
+            )
+
+        base_balanced_acc_arr[i] = base_balanced_accuracy
+        base_f1_arr[i,:]= base_f1
+        base_precision_arr[i,:] = base_precision
+        base_recall_arr[i,:] = base_recall
+
+        cnf_matrix, accuracy, balanced_accuracy, f1, precision, recall = confusion_matrix_func(
+                y_true=label, y_pred=mask, nclasses=len(classes), norm=True
+            )
+
+        balanced_acc_arr[i] = balanced_accuracy
+        f1_arr[i,:]= f1
+        precision_arr[i,:] = precision
+        recall_arr[i,:] = recall
+
+        # if im_type == 'sentinel':
+        #     plot_img_and_mask_4(img, label, mask)
+        # else:
+        #     plot_img_and_mask_3(img, label, mask, balanced_accuracy)
+        #plot_img_and_mask_2(img, mask)
+
+
+        ### end loop
+
+    #print(f1_arr)
 
     plot_confusion_matrix(base_cnf_matrix, class_names=classes, name="base")
-
     base_pred_name = '/home/geoint/tri/github_files/results_paper1/image_1/base_unet_pred.png'
-
     plot_pred_only(baseline_mask,base_pred_name, base_balanced_accuracy)
 
-    cnf_matrix, accuracy, balanced_accuracy, f1, precision, recall = confusion_matrix_func(
-            y_true=label, y_pred=mask, nclasses=len(classes), norm=True
-        )
-
-    print("Overall Accuracy: ", accuracy)
-    print("Balanced Accuracy: ", balanced_accuracy)
-    print("F1 Score: ", f1)
-    print("Precision: ", precision)
-    print("Recall: ", recall)
-
     plot_confusion_matrix(cnf_matrix, class_names=classes, name='rqunet_vae')
-    # if im_type == 'sentinel':
-    #     plot_img_and_mask_4(img, label, mask)
-    # else:
-    #     plot_img_and_mask_3(img, label, mask, balanced_accuracy)
-    #plot_img_and_mask_2(img, mask)
-
     rqunetvae_pred_name = '/home/geoint/tri/github_files/results_paper1/image_1/rqunet_vae_pred.png'
-
     plot_pred_only(mask,rqunetvae_pred_name, balanced_accuracy)
+
+    base_bal_acc_mean = np.mean(base_balanced_acc_arr)
+    base_bal_acc_std = np.std(base_balanced_acc_arr)
+    base_f1_mean = np.mean(base_f1_arr, axis=0)
+    base_f1_std = np.std(base_f1_arr, axis=0)
+    base_precision_mean = np.mean(base_precision_arr, axis=0)
+    base_precision_std = np.std(base_precision_arr, axis=0)
+    base_recall_mean = np.mean(base_recall_arr, axis=0)
+    base_recall_std = np.std(base_recall_arr, axis=0)
+
+    #print("Baseline Overall Accuracy Mean: ", base_accuracy)
+    print("Baseline Balanced Accuracy Mean: ", base_bal_acc_mean)
+    print("Baseline Balanced Accuracy Std: ", base_bal_acc_std)
+    print("Baseline F1 Mean: ", base_f1_mean)
+    print("Baseline F1 Std: ", base_f1_std)
+    print("Baseline Precision Mean: ", base_precision_mean)
+    print("Baseline Precision Std: ", base_precision_std)
+    print("Baseline Recall Mean: ", base_recall_mean)
+    print("Baseline Recall Std: ", base_recall_std)
+
+    bal_acc_mean = np.mean(balanced_acc_arr)
+    bal_acc_std = np.std(balanced_acc_arr)
+    f1_mean = np.mean(f1_arr, axis=0)
+    f1_std = np.std(f1_arr, axis=0)
+    precision_mean = np.mean(precision_arr, axis=0)
+    precision_std = np.std(precision_arr, axis=0)
+    recall_mean = np.mean(recall_arr, axis=0)
+    recall_std = np.std(recall_arr, axis=0)
+
+    #print("Overall Accuracy: ", accuracy)
+    print("Balanced Accuracy Mean: ", bal_acc_mean)
+    print("Balanced Accuracy Std: ", bal_acc_std)
+    print("F1 Score Mean: ", f1_mean)
+    print("F1 Score Std: ", f1_std)
+    print("Precision Mean: ", precision_mean)
+    print("Precision Std: ", precision_std)
+    print("Recall Mean: ", recall_mean)
+    print("Recall Std: ", recall_std)

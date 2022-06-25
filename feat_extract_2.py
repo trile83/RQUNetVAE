@@ -354,7 +354,7 @@ if __name__ == '__main__':
     # plot_img_and_mask_recon(im_false, pred_false)
     plot_img_and_mask_recon(im_false, pred)
     #plot_img_and_mask_recon(im_false, ndvi)
-    plot_img_and_mask_recon(im_false, index_ndvi)
+    #plot_img_and_mask_recon(im_false, index_ndvi)
     #plot_img_and_mask_recon(im_false, chm)
     #plot_img_and_mask_recon(im_false, index_chm)
     #plot_img_and_mask_recon(im_false, index_all)

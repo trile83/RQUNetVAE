@@ -111,7 +111,7 @@ def feat_ext(ndvi, f):
             b[:,i,:,:] = np.zeros((feature.shape))
             #b[:,i,:,:] = feature
         elif nrmse_val > 0.70:
-            b[:,i,:,:] = feature + index_ndvi
+            b[:,i,:,:] = feature * index_ndvi
             #b[:,i,:,:] = (feature + ndvi_res) / 2
             #b[:,i,:,:] = np.zeros((feature.shape))
 

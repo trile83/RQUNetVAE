@@ -100,8 +100,8 @@ def feat_ext(ndvi, f):
         h,w = feature.shape
         feature = 2.*(feature - np.min(feature))/nan_ptp(feature)-1
         
-        nrmse_val = nrmse(ndvi_res, feature)
-        #nrmse_val = nrmse(index_ndvi, feature)
+        #nrmse_val = nrmse(ndvi_res, feature)
+        nrmse_val = nrmse(index_ndvi, feature)
         # ssim_val, ssim_map = ssim(ndvi_res, feature, window=np.zeros((11,11)), k=(0.01, 0.03), l=255)
         # print(i)
         # print('nrmse_val: ', nrmse_val)
@@ -111,11 +111,13 @@ def feat_ext(ndvi, f):
             b[:,i,:,:] = np.zeros((feature.shape))
             #b[:,i,:,:] = feature
         elif nrmse_val > 0.70:
-            b[:,i,:,:] = feature * index_ndvi
+            b[:,i,:,:] = feature
             #b[:,i,:,:] = (feature + ndvi_res) / 2
             #b[:,i,:,:] = np.zeros((feature.shape))
 
         #b[:,i,:,:] = index_ndvi
+
+    b = f
 
     tensor = torch.tensor(b, dtype = torch.float16).cuda()
 

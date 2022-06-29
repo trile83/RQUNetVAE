@@ -86,7 +86,8 @@ def jpg_to_tensor(filepath):
     #pil = pil[512:1024,512:1024, :]
     #pil = pil[1024:1536,2048:2560, :]
 
-    pil = pil[1536:2560,512:1536, :]
+    #pil = pil[1536:2560,512:1536, :]
+    pil = pil[1536:2560,1536:2560, :]
     #pil = pil[512:1536,512:1536, :]
 
     ndvi = ndvi[1024:1536,2048:2560]
@@ -275,7 +276,8 @@ if __name__ == '__main__':
     #file_path = '/home/geoint/tri/nasa_senegal/cassemance/Tappan01_WV02_20110430_M1BS_103001000A27E100_data.tif'
     #file_path = '/home/geoint/tri/nasa_senegal/test/sar/Tappan02_WV03_20160123_M1BS_1040010018A59100_data_chm.tif'
 
-    file_path = '/home/geoint/tri/nasa_senegal/cassemance/Tappan02_WV02_20181217_M1BS_1030010089CC6D00_data.tif'
+    #file_path = '/home/geoint/tri/nasa_senegal/cassemance/Tappan02_WV02_20181217_M1BS_1030010089CC6D00_data.tif'
+    file_path = '/home/geoint/tri/nasa_senegal/cassemance/Tappan02_WV02_20121014_M1BS_103001001B793900_data.tif'
 
     use_cuda = True
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -309,7 +311,7 @@ if __name__ == '__main__':
     ndvi_lower = np.array(ndvi_lower, dtype=float)
     ndvi = np.divide(ndvi_upper, ndvi_lower, out=np.zeros_like(ndvi_upper, dtype=float), where=ndvi_lower!=0)
 
-    index_ndvi = np.ma.where(ndvi < 0, 1, 0)
+    index_ndvi = np.ma.where(ndvi < 0.1, 1, 0)
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(8)
@@ -354,13 +356,13 @@ if __name__ == '__main__':
     # plot_img_and_mask_recon(im_false, pred_false)
     plot_img_and_mask_recon(im_false, pred)
     #plot_img_and_mask_recon(im_false, ndvi)
-    #plot_img_and_mask_recon(im_false, index_ndvi)
+    plot_img_and_mask_recon(im_false, index_ndvi)
     #plot_img_and_mask_recon(im_false, chm)
     #plot_img_and_mask_recon(im_false, index_chm)
     #plot_img_and_mask_recon(im_false, index_all)
 
     #tifffile.imsave('/home/geoint/tri/github_files/tri_exp/test_Tappan02_2016_8band_out_3.tiff', pred)
-    #tifffile.imsave('/home/geoint/tri/github_files/tri_exp/test_Tappan02_20181217_8band_out_1_no_func_1.tiff', pred)
+    tifffile.imsave('/home/geoint/tri/github_files/tri_exp/test_Tappan02_20181217_8band_out_1_no_func_1_im1.tiff', pred)
     #tifffile.imsave('/home/geoint/tri/github_files/tri_exp/ndvi__Tappan02_20181217.tif', ndvi)
     #tifffile.imsave('/home/geoint/tri/github_files/tri_exp/test_Tappan02_20181217_8band_false.tiff', im_false)
 

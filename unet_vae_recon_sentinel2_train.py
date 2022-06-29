@@ -362,37 +362,17 @@ def train_net(net,
                 # Calculate Loss
                 valid_loss += loss_val.item()
 
-                print(f'Epoch {epoch+1} \t\t Training Loss: {epoch_loss / len(train_loader)} \t\t Validation Loss: {valid_loss / len(val_loader)}')
+            print(f'Epoch {epoch+1} \t\t Training Loss: {epoch_loss / len(train_loader)} \t\t Validation Loss: {valid_loss / len(val_loader)}')
+            
+            if min_valid_loss > valid_loss:
+                print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{valid_loss:.6f}) \t Saving The Model')
+                min_valid_loss = valid_loss
                 
-                if min_valid_loss > valid_loss:
-                    print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{valid_loss:.6f}) \t Saving The Model')
-                    min_valid_loss = valid_loss
+                # print("valid_loss: ", valid_loss)
+                # Saving State Dict
+                Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
+                torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_5-7_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
                     
-                    # print("valid_loss: ", valid_loss)
-                    # Saving State Dict
-                    Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-                    torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_5-7_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
-                    
-                            
-                        #logging.info('Validation loss score: {}'.format(val_score))
-                        # experiment.log({
-                        #     'learning rate': optimizer.param_groups[0]['lr'],
-                        #     #'validation loss': val_score,
-                        #     #'images': wandb.Image(images[0,:,:,:2].cpu()),
-                        #     'masks': {
-                        #         #'true': wandb.Image(true_masks[0].float().cpu()),
-                        #         #'pred': wandb.Image(torch.softmax(masked_output, dim=1).argmax(dim=1)[0].float().cpu())
-                        #     },
-                        #     'step': global_step,
-                        #     'epoch': epoch,
-                        #     **histograms
-                        # })
-                
-        # if save_checkpoint:
-        #     Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-        #     torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_5-7_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
-        #     #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
-        #     logging.info(f'Checkpoint {epoch + 1} saved!')
 
     #plt.plot(loss_items['total_loss'])
     plt.plot(loss_items['recon_loss'], 'r--', loss_items['kl_loss'], 'b--', loss_items['total_loss'], 'g')
@@ -400,11 +380,6 @@ def train_net(net,
     plt.xlabel('epoch')
     plt.legend(labels = ['reconstruction loss','kl loss','total loss'],loc='upper right')
     plt.show()
-        
-        #if use_cuda:
-            #noise.data += sigma * torch.randn(noise.shape).cuda()
-        #else:
-            #noise.data += sigma * torch.randn(noise.shape)
 
 if __name__ == '__main__':
     #args = get_args()

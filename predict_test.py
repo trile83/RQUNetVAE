@@ -5,8 +5,6 @@ import rasterio
 from skimage import exposure
 import numpy as np
 import torch
-from torchvision import transforms
-from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 
 from unet import UNet_VAE

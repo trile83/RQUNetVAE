@@ -13,20 +13,6 @@ from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, RQUNet_VAE_scheme1_
 from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2, UNet_VAE_Stacked
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
-#image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
-#mask_true_path = '/home/geoint/tri/github_files/test_label/number13458.TIF'
-image_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
-mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
-
-use_cuda = True
-#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-im_type = image_path[30:38]
-print('image type: ', im_type)
-segment=False
-alpha = 0.0
-unet_option = 'unet_vae_old' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3' 'rqunet_vae_scheme1_pareto'
-image_option = "clean" # "clean" or "noisy"
-
 ##################################
 def rescale(image): ## function to rescale image for visualization
     map_img =  np.zeros((256,256,3))
@@ -71,7 +57,7 @@ def normalize_image(image):
     return image
 
 #accept a file path to a jpg, return a torch tensor
-def jpg_to_tensor(filepath=image_path):
+def jpg_to_tensor(filepath):
 
     image = rasterio.open(filepath).read()
 
@@ -122,10 +108,10 @@ def predict_img(net,
 
         if unet_option == 'unet':
             output = output
-            return output.cpu()
+            return output.permute(2, 1, 0).numpy()
         elif unet_option=='unet_vae_stacked':
             output = output[1]
-            return output.cpu()
+            return output.permute(2, 1, 0).numpy()
         elif unet_option == 'unet_vae_RQ_scheme3':
             err = output[5]
             output = output[3]
@@ -133,13 +119,13 @@ def predict_img(net,
             plt.plot(err.cpu())
             plt.show()
 
-            return output.cpu()
+            return output.permute(2, 1, 0).numpy()
         elif unet_option == 'rqunet_vae_scheme1_pareto':
             s = output[6]
             Wy = output[5]
             output = output[3]
 
-            return output.cpu(), s.cpu().numpy(), Wy.cpu().numpy()
+            return output.permute(2, 1, 0).numpy(), s.cpu().numpy(), Wy.cpu().numpy()
         else:
 
             output = output[3]
@@ -178,7 +164,21 @@ if __name__ == '__main__':
     #args = get_args()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-18_epoch10_0.0_recon.pth'
-    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch5_sentinel_6-29_recon.pth'
+    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch14_sentinel_6-28_recon.pth'
+
+    #image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
+    #mask_true_path = '/home/geoint/tri/github_files/test_label/number13458.TIF'
+    image_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
+    mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
+
+    use_cuda = True
+    #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    im_type = image_path[30:38]
+    print('image type: ', im_type)
+    segment=False
+    alpha = 0.4
+    unet_option = 'unet_vae_RQ_scheme2' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3' 'rqunet_vae_scheme1_pareto'
+    image_option = "noisy" # "clean" or "noisy"
 
 
     if unet_option == 'unet_vae_1':

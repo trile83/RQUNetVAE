@@ -10,7 +10,7 @@ import numpy as np
 from pathlib import Path
 from skimage import exposure
 import glob
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torch import optim
 from tqdm import tqdm

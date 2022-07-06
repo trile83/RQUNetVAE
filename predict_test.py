@@ -177,7 +177,7 @@ if __name__ == '__main__':
     print('image type: ', im_type)
     segment=False
     alpha = 0.4
-    unet_option = 'unet_vae_RQ_scheme2' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3' 'rqunet_vae_scheme1_pareto'
+    unet_option = 'rqunet_vae_scheme1_pareto' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3' 'rqunet_vae_scheme1_pareto'
     image_option = "noisy" # "clean" or "noisy"
 
 

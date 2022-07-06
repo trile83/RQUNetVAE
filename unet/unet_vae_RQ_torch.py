@@ -563,7 +563,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
             
             dropout = False
             shrink = True if i == 0 else False
-            #shrink = True if i < depth-1 else False
+            #shrink = True if i < depth-3 else False
 
             down_conv = DownConv(ins, outs, segment=self.segment, alpha=0.3, pooling=pooling, batchnorm=batchnorm, dropout=dropout, shrink=shrink)
             self.down_convs.append(down_conv)

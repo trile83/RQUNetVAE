@@ -180,10 +180,10 @@ def predict_img(net,
                 out_threshold=0.5):
     net.eval()
 
-    # if image_option=='clean':
-    #     img = jpg_to_tensor(filepath)[0] ## clean image
-    # elif image_option=='noisy':
-    #     img = jpg_to_tensor(filepath)[1] ## noisy image
+    if image_option=='clean':
+        img = jpg_to_tensor(filepath)[0] ## clean image
+    elif image_option=='noisy':
+        img = jpg_to_tensor(filepath)[1] ## noisy image
 
     img = img.to(device=device, dtype=torch.float32)
 
@@ -372,7 +372,7 @@ if __name__ == '__main__':
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
 
-    iteration = 20
+    iteration = 1
 
     # arrays for typical UNet results
     base_balanced_acc_arr = np.zeros((iteration))

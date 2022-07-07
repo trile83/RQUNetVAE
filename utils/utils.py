@@ -86,12 +86,12 @@ def plot_img_and_mask_4(image, mask_true, mask_pred):
     #classes = ['Tree', 'Grass', 'Soil', 'Concrete'] # 6-Cloud not present
     #colors = ['forestgreen', 'lawngreen', 'brown', 'orange']
 
-    classes = ['1','2','3'] # 6-Cloud not present
-    colors = ['blue', 'red', 'lawngreen']
-    colormap = pltc.ListedColormap(colors)
+    # classes = ['1','2','3'] # 6-Cloud not present
+    # colors = ['blue', 'red', 'lawngreen']
+    # colormap = pltc.ListedColormap(colors)
 
-    mask_true[mask_true == 1] = 3
-    mask_true = mask_true-2
+    # mask_true[mask_true == 1] = 3
+    # mask_true = mask_true-2
 
     #mask_pred[mask_pred==1]==0
     #mask_pred[mask_pred==2]==1
@@ -102,12 +102,12 @@ def plot_img_and_mask_4(image, mask_true, mask_pred):
     axes[0].title.set_text("Image")
     axes[0].imshow(image)
     axes[1].title.set_text("Ground Truth")
-    axes[1].imshow(mask_true, cmap=colormap)
+    axes[1].imshow(mask_true)
     axes[2].title.set_text("Prediction")
-    axes[2].imshow(mask_pred, cmap=colormap)
+    axes[2].imshow(mask_pred)
     fig.tight_layout()
     # create a patch (proxy artist) for every color 
-    patches = [mpatches.Patch(color=colors[i], label="{l}".format(l=classes[i])) for i in range(len(classes))]
+    #patches = [mpatches.Patch(color=colors[i], label="{l}".format(l=classes[i])) for i in range(len(classes))]
     # put those patched as legend-handles into the legend
     plt.show()
 

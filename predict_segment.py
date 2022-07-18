@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 from torchvision import transforms
 import tifffile
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 
 from unet import UNet_VAE, UNet_test
 from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_torch
@@ -73,10 +74,10 @@ def jpg_to_tensor(filepath):
     if im_type != "sentinel":
         pil = image/255
     else:
-        # pil = normalize_image(image)
         # pil = standardize_image(pil)
         pil = np.asarray(image)
-        #pil = rescale(pil)
+        pil = normalize_image(image)
+        # pil = rescale(pil)
 
     # print(np.max(pil))
     # print(np.min(pil))
@@ -226,7 +227,7 @@ if __name__ == '__main__':
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
-    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_epoch34_7-6_segment_sentinel.pth'
+    model_unet_jaxony = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_jaxony_epoch17_7-6_segment_sentinel.pth'
     model_unet_vae = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch11_va059_5-16_segment2class.pth'
 
     if unet_option == 'unet_vae_1':
@@ -284,7 +285,6 @@ if __name__ == '__main__':
 
     #img = read_sentinel2(image_path)
 
-    #print(naip_ds)
 
     ## get ground truth label
     label_file = mask_true_path
@@ -300,7 +300,8 @@ if __name__ == '__main__':
 
     print(np.unique(label))
 
-    error = mask - label
+    balanced_accuracy = balanced_accuracy_score(label.flatten(), mask.flatten(), sample_weight=None)
+    print("balanced accuracy: ", balanced_accuracy)
     #print("errors: ", error)
     print(np.unique(mask))
     if im_type == 'sentinel':

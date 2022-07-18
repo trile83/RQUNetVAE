@@ -936,4 +936,4 @@ class UNet_VAE_RQ_scheme3(nn.Module):
         # Step 5 - KL Loss func:
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         
-        return x, mu, logvar, x_recon, kl_loss, err
+        return x, mu, logvar, x_recon, kl_loss, err, s_i_shrink, z_ori

@@ -84,6 +84,7 @@ class satDataset(Dataset):
         mask = np.asarray(mask)
         # image = rasterio.open(self.image_paths[index]).read()
         # image = rescale(image)
+        image= normalize_image(image)
         # image = standardize_image(image)
         # mask = rasterio.open(self.target_paths[index]).read(1)
 
@@ -94,14 +95,13 @@ class satDataset(Dataset):
         mask = mask-1
 
         t_image = self.transforms(image)
-        #t_mask = self.transforms(mask)
+        # t_mask = self.transforms(mask)
         t_mask = torch.LongTensor(mask)
         # print(torch.max(t_image))
         # print(torch.unique(t_mask))
         return {
             'image': t_image,
             'mask': t_mask
-            # 'weight': class_weights
         }
 
 
@@ -168,7 +168,7 @@ def train_net(net,
     #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=2)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
 
-    weights = [0.2,1.0]
+    weights = [0.2,2.0]
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = nn.CrossEntropyLoss(weight=class_weights,reduction='mean')
     # criterion  = nn.NLLLoss()
@@ -374,7 +374,7 @@ if __name__ == '__main__':
 
     try:
         train_net(net=net,
-                  epochs=40,
+                  epochs=20,
                   batch_size=1,
                   learning_rate=1e-4,
                   device=device,

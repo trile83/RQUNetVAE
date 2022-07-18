@@ -28,7 +28,7 @@ im_type = image_path[30:38]
 print('image type: ', im_type)
 segment=False
 alpha = 0.0
-unet_option = 'rqunet_vae_scheme1_pareto' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
+unet_option = 'unet_vae_stacked' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
 image_option = "clean" # "clean" or "noisy"
 
 ##################################
@@ -224,6 +224,14 @@ if __name__ == '__main__':
                         scale_factor=1,
                         out_threshold=0.5,
                         device=device)
+
+        x_range = np.arange(65536)
+        plt.plot(s, x_range, color='blue', label = 's')
+        plt.plot(Wy, x_range, color='red', label = 'Wy')
+        plt.legend()
+        plt.show()
+
+        
     else:
         mask = predict_img(net=net,
                         filepath=image_path,
@@ -231,11 +239,7 @@ if __name__ == '__main__':
                         out_threshold=0.5,
                         device=device)
 
-    x_range = np.arange(65536)
-    plt.plot(s, x_range, color='blue', label = 's')
-    plt.plot(Wy, x_range, color='red', label = 'Wy')
-    plt.legend()
-    plt.show()
+    
 
     # out_files = 'out/predict_va_vae_recon_epoch1'
     # im_out_files = 'out/img'

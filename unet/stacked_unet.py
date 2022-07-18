@@ -729,7 +729,7 @@ class UNet_VAE_Stacked(nn.Module):
         for i in range(self.unet_num_block):
             block = UNet_VAE_Block(3, segment, alpha)
             if model_weight is not None:
-                block.load_state_dict(torch.load(model_weight, map_location=device))
+                block.load_state_dict(torch.load(model_weight))
             self.unet_blocks.append(block)
 
         self.unet_blocks = nn.ModuleList(self.unet_blocks)

@@ -26,11 +26,10 @@ from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from scipy.ndimage import gaussian_filter
-
+import tifffile
 
 image_path = 'CH_R001_2018-05-07_03.tif'
 mask_true_path = 'CH_R001_2018-05-07_03.tif'
-
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -66,21 +65,7 @@ def rescale_truncate(image):
 #accept a file path to a jpg, return a torch tensor
 def jpg_to_tensor(filepath=image_path):
 
-    naip_fn = filepath
-    driverTiff = gdal.GetDriverByName('GTiff')
-    naip_ds = gdal.Open(naip_fn, 1)
-    nbands = naip_ds.RasterCount
-    # create an empty array, each column of the empty array will hold one band of data from the image
-    # loop through each band in the image nad add to the data array
-    data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
-    for i in range(1, nbands+1):
-        band = naip_ds.GetRasterBand(i).ReadAsArray()
-        data[:, i-1] = band.flatten()
-
-    img_data = np.zeros((naip_ds.RasterYSize, naip_ds.RasterXSize, naip_ds.RasterCount),
-                    gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
-    for b in range(img_data.shape[2]):
-        img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
+    img_data = tifffile.imread(filepath)
 
     pil = np.array(img_data)
     # if im_type != "sentinel":
@@ -586,6 +571,8 @@ if __name__ == '__main__':
     ###############
 
     X = pixel_vals
+
+    print(X.shape)
     print("Negative Values: ", X[X<0])
     #build dataset
     gl.datasets.save(X,X,'s2',overwrite=True)

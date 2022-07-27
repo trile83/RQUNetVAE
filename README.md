@@ -1,8 +1,8 @@
 # UNet VariationalEncoder RieszQuincunxShrinkage using Pytorch
  
-The Unet code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment in the "test" branch.<br>
+The UNet code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment in the "test" branch.<br>
 
-The Unet code is using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>
+The UNet code is using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>
 The data generation process in the training script is used for the data with a specific path type. For example, input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
 ## On the test branch:<br>
 To run the training file, users can run the the following command: <br>

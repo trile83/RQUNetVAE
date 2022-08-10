@@ -113,7 +113,7 @@ def train_net(net,
     img = np.asarray(arr[:,:,:])
 
     # if the image is (C,H,W)
-    # img = img.reshape((img.shape[2],img.shape[1],img.shape[0]))
+    img = img.reshape((img.shape[2],img.shape[1],img.shape[0]))
 
     # print(img.shape)
     # image will have dimension (h,w,c) and don't need to reshape
@@ -139,7 +139,7 @@ def train_net(net,
     train_size = 100 
     test_size = 10 
     input_size = 128
-    
+
     I = np.random.randint(0, h-input_size, size=train_size+test_size)
     J = np.random.randint(0, w-input_size, size=train_size+test_size)
     

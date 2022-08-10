@@ -55,7 +55,7 @@ def normalize_image(image):
     #         image[i, :, :] = (image[i, :, :] - np.min(image[i, :, :])) / (np.max(image[i, :, :]) - np.min(image[i, :, :]))
 
     image = (image - np.min(image)) / (np.max(image) - np.min(image))
-    #image = image/np.max(image)
+    # image = image/255
 
     return image
 
@@ -131,14 +131,24 @@ def predict_img(net,
 
     train_size = 100 
     test_size = 10  
-    I = np.random.randint(0, h-256, size=train_size+test_size)
-    J = np.random.randint(0, w-256, size=train_size+test_size)
+    input_size = 128
     
-    X = np.array([img[i:(i+256), j:(j+256),:] for i, j in zip(I, J)])
+    I = np.random.randint(0, h-input_size, size=train_size+test_size)
+    J = np.random.randint(0, w-input_size, size=train_size+test_size)
+    
+    X = np.array([img[i:(i+input_size), j:(j+input_size),:] for i, j in zip(I, J)])
 
     #######
     # get first image 
     img = X[0]
+
+    transform_tensor = transforms.ToTensor()
+    # if use_cuda:
+    #     #noisy_tensor = transform_tensor(noisy).cuda()
+    #     img = transform_tensor(img).cuda()
+
+    img = transform_tensor(img)
+    img = img.view([1]+list(img.shape))
     img = img.to(device=device, dtype=torch.float32)
 
     with torch.no_grad():

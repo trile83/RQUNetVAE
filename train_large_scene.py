@@ -48,7 +48,7 @@ def normalize_image(image):
     #         image[i, :, :] = (image[i, :, :] - np.min(image[i, :, :])) / (np.max(image[i, :, :]) - np.min(image[i, :, :]))
 
     image = (image - np.min(image)) / (np.max(image) - np.min(image))
-    #image = image/np.max(image)
+    #image = image/255
 
     return image
 
@@ -137,11 +137,13 @@ def train_net(net,
     h, w, c = img.shape
 
     train_size = 100 
-    test_size = 10  
-    I = np.random.randint(0, h-256, size=train_size+test_size)
-    J = np.random.randint(0, w-256, size=train_size+test_size)
+    test_size = 10 
+    input_size = 128
     
-    X = np.array([img[i:(i+256), j:(j+256),:] for i, j in zip(I, J)])
+    I = np.random.randint(0, h-input_size, size=train_size+test_size)
+    J = np.random.randint(0, w-input_size, size=train_size+test_size)
+    
+    X = np.array([img[i:(i+input_size), j:(j+input_size),:] for i, j in zip(I, J)])
 
     x_train = X[:train_size]
     x_test = X[train_size:]

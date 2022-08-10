@@ -95,6 +95,8 @@ if __name__ == '__main__':
     #plt.plot(sigma_range, sigma_acc_unet_vae_rq_2, label = 'Unet VAE RQ 0.2')
     #plt.plot(sigma_range, sigma_acc_unet_vae_rq_3, label = 'Unet VAE RQ 0.3')
     #plt.plot(sigma_range, sigma_acc_unet_vae_rq_4, label = 'Unet VAE RQ 0.4')
+    plt.xlabel('noise level')
+    plt.ylabel('accuracy')
     plt.legend()
     plt.savefig(name, bbox_inches='tight')
     plt.show()

@@ -1,4 +1,3 @@
-
 import logging
 import sys
 import torch
@@ -111,12 +110,16 @@ def train_net(net,
     arr = tifffile.imread('/home/geoint/tri/nasa_senegal/cassemance/Tappan01_WV02_20110430_M1BS_103001000A27E100_data.tif')
     # normalization
     #img = np.asarray(arr[1:4,:,:]) * 0.0001   
-    img = np.asarray(arr[:,:,:3])
+    img = np.asarray(arr[:,:,:])
 
-    print(img.shape)
+    # if the image is (C,H,W)
+    # img = img.reshape((img.shape[2],img.shape[1],img.shape[0]))
+
+    # print(img.shape)
     # image will have dimension (h,w,c) and don't need to reshape
 
-    img = standardize_image(img/10000)
+    # img = standardize_image(img/10000)
+    img = normalize_image(img)
 
     # ---------------------------------------------------------------
 

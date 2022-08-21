@@ -4,7 +4,7 @@ The UNet code is constructed using PyTorch and users can the requirement/environ
 
 The UNet code is using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>
 The data generation process in the training script is used for the data with a specific path type. For example, input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
-## On the test branch:<br>
+## On the main branch:<br>
 
 To run the predict file for one image, users can run the following command: <br>
 ```python unet_vae_2class_segment_train.py```

@@ -110,7 +110,7 @@ def predict_img(net,
     print(img.shape)
     # image will have dimension (h,w,c) and don't need to reshape
     # if the image is (C,H,W):
-    img = img.reshape((img.shape[2],img.shape[1],img.shape[0]))
+    img = img.reshape((img.shape[1],img.shape[2],img.shape[0]))
 
     img = normalize_image(img)
 
@@ -272,6 +272,7 @@ if __name__ == '__main__':
     mask = tensor_to_jpg(mask)
 
     plt.imshow(mask[:,:,:3])
+    plt.show()
 
 
     # if image_option=='clean':

@@ -183,14 +183,14 @@ def train_net(net,
 
     #print(images[class_name]['train'])
 
-    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=75)
+    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=70)
     images, labels = next(train_data_gen)
 
-    train_images = images[:70]
-    train_labels = labels[:70]
+    train_images = images[:60]
+    train_labels = labels[:60]
 
-    val_images = images[70:72]
-    val_labels = labels[70:72]
+    val_images = images[60:70]
+    val_labels = labels[60:70]
 
     # 2. Split into train / validation partitions
     n_val = len(val_images)
@@ -210,10 +210,10 @@ def train_net(net,
     print("val loader size",len(val_loader))
 
     # (Initialize logging)
-    experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
-    experiment.config.update(dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
-                                  val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale,
-                                  amp=amp))
+    # experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
+    # experiment.config.update(dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
+    #                               val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale,
+    #                               amp=amp))
 
     logging.info(f'''Starting training:
         Epochs:          {epochs}
@@ -241,6 +241,8 @@ def train_net(net,
     loss_items['recon_loss'] = []
     loss_items['kl_loss'] = []
     loss_items['total_loss'] = []
+    
+    min_valid_loss = np.inf
     for epoch in range(epochs):
         #get the network output
         net.train()
@@ -299,9 +301,10 @@ def train_net(net,
                     print("total loss: ", loss)
 
                 optimizer.zero_grad()
-                #print('At step {}, loss is {}'.format(step, loss.data.cpu()))
                 loss.backward()
                 optimizer.step()
+
+                #print('At step {}, loss is {}'.format(step, loss.data.cpu()))
 
                 #for p in net.parameters():
                     #print(p)
@@ -310,56 +313,66 @@ def train_net(net,
                 #grad_scaler.step(optimizer)
                 #grad_scaler.update()
 
-                pbar.update(images.shape[0])
-                global_step += 1
-                epoch_loss += loss.item()
-                experiment.log({
-                    'train loss': loss.item(),
-                    'step': global_step,
-                    'epoch': epoch
-                })
-                pbar.set_postfix(**{'loss (batch)': loss.item()})
+                # pbar.update(images.shape[0])
+                # global_step += 1
+                # epoch_loss += loss.item()
+                # experiment.log({
+                #     'train loss': loss.item(),
+                #     'step': global_step,
+                #     'epoch': epoch
+                # })
+                # pbar.set_postfix(**{'loss (batch)': loss.item()})
 
-                #_, predicted = torch.max(masked_output.data, 1)
-                #total_train += true_masks.nelement()
-                #correct_train += predicted.eq(true_masks.data).sum().item()
-                #train_accuracy = 100 * correct_train/ total_train
-                #logging.info('Training accuracy: {}'.format(train_accuracy))
-
-                #print(net.named_parameters())
-
-                # Evaluation round
-                division_step = (n_train // (10 * batch_size))
-                if division_step > 0:
-                    if global_step % division_step == 0:
-                        histograms = {}
-                        for tag, value in net.named_parameters():
-                            tag = tag.replace('/', '.')
-                            #histograms['Weights/' + tag] = wandb.Histogram(value.data.cpu())
-                            #histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
-
-                        #val_score = evaluate(net, val_loader, device)
-                        #scheduler.step(val_score)
-
-                        #logging.info('Validation loss score: {}'.format(val_score))
-                        experiment.log({
-                            'learning rate': optimizer.param_groups[0]['lr'],
-                            #'validation loss': val_score,
-                            #'images': wandb.Image(images[0,:,:,:2].cpu()),
-                            'masks': {
-                                #'true': wandb.Image(true_masks[0].float().cpu()),
-                                #'pred': wandb.Image(torch.softmax(masked_output, dim=1).argmax(dim=1)[0].float().cpu())
-                            },
-                            'step': global_step,
-                            'epoch': epoch,
-                            **histograms
-                        })
                 
-        if save_checkpoint:
-            Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_{alpha}_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
-            #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
-            logging.info(f'Checkpoint {epoch + 1} saved!')
+            # Validation
+            valid_loss = 0.0
+            net.eval()     # Optional when not using Model Specific layer
+            for batch_val in val_loader:
+                # Transfer Data to GPU if available
+                images_val = batch_val['image']
+                true_masks_val = batch_val['mask']
+
+                images_val = images_val.to(device=device, dtype=torch.float32)
+                true_masks_val = true_masks_val.to(device=device, dtype=torch.float32)
+
+                #print("true mask shape: ", true_masks.shape)
+
+                images_val = torch.reshape(images_val, (batch_size,3,256,256))
+                true_masks_val = torch.reshape(true_masks_val, (batch_size,3,256,256))
+
+                # Forward Pass
+                output_val = net(images)
+
+                if unet_option == 'unet' or unet_option == 'unet_1':
+                    output_val_recon = output_val
+                    loss = criterion(output_val_recon, true_masks_val)
+                elif unet_option == 'simple_unet':
+                    output_val_recon = output_val
+                    loss = criterion(output_val_recon, true_masks_val)
+                else:
+                    output_val_recon = output_val[3]
+
+                mu = output_val[1]
+                logvar = output_val[2]
+                kl_loss_val = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            
+                # Find the Loss
+                recon_loss_val = criterion(output_val_recon, true_masks_val)
+                loss_val = recon_loss_val + kl_loss_val
+                # Calculate Loss
+                valid_loss += loss_val.item()
+
+            print(f'Epoch {epoch+1} \t\t Training Loss: {epoch_loss / len(train_loader)} \t\t Validation Loss: {valid_loss / len(val_loader)}')
+            
+            if min_valid_loss > valid_loss:
+                print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{valid_loss:.6f}) \t Saving The Model')
+                min_valid_loss = valid_loss
+                
+                # print("valid_loss: ", valid_loss)
+                # Saving State Dict
+                Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
+                torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_sentinel_5-7_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+                    
 
     #plt.plot(loss_items['total_loss'])
     plt.plot(loss_items['recon_loss'], 'r--', loss_items['kl_loss'], 'b--', loss_items['total_loss'], 'g')
@@ -367,11 +380,6 @@ def train_net(net,
     plt.xlabel('epoch')
     plt.legend(labels = ['reconstruction loss','kl loss','total loss'],loc='upper right')
     plt.show()
-        
-        #if use_cuda:
-            #noise.data += sigma * torch.randn(noise.shape).cuda()
-        #else:
-            #noise.data += sigma * torch.randn(noise.shape)
 
 if __name__ == '__main__':
     #args = get_args()

@@ -59,9 +59,6 @@ data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
 
 # Create training data 
-def load_obj(name):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
     
 def load_image_paths(path, name, mode, images):
     images[name] = {mode: defaultdict(dict)}
@@ -123,6 +120,8 @@ def data_generator(files, size=256, mode="train", batch_size=6):
                            gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
             for b in range(img_data.shape[2]):
                 img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
+
+            img_data = rescale(img_data)
                 
             if img_data.shape == (256,256,3):
                 X_lst.append(img_data)
@@ -169,7 +168,6 @@ def data_generator(files, size=256, mode="train", batch_size=6):
             #plt.imshow()
             #plt.show()
 
-            break
 
             Y_lst.append(img_data)
          
@@ -180,8 +178,8 @@ def data_generator(files, size=256, mode="train", batch_size=6):
         print("Min value of Y", np.min(Y))
 
         # normalized input images
-        for i in range(len(X)):
-            X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
+        #for i in range(len(X)):
+            #X[i] = (X[i] - np.min(X[i])) / (np.max(X[i]) - np.min(X[i]))
 
         print("Max value of X", np.max(X))
         print("Min value of X", np.min(X))
@@ -413,7 +411,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_{alpha}_batchnorm_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_{alpha}_3-23_batchnorm_segment.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -448,7 +446,7 @@ if __name__ == '__main__':
     
     alpha = 0.0
     unet_option = "unet_vae_old"
-    segment = False ## which means adding batchnorm layers, better for segmentation
+    segment = True ## which means adding batchnorm layers, better for segmentation
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
@@ -476,7 +474,7 @@ if __name__ == '__main__':
     net.to(device=device)
     try:
         train_net(net=net,
-                  epochs=30,
+                  epochs=10,
                   batch_size=5,
                   learning_rate=1e-5,
                   device=device,

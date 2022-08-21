@@ -3,20 +3,18 @@ import logging
 import os
 import rasterio as rio
 from skimage import exposure
-
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
-import torchvision
 from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 
 from unet import UNet_VAE
-from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
-from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3
-from unet import UNet_VAE_RQ_scheme1
+from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_torch
+from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, RQUNet_VAE_scheme1_Pareto
+from unet import UNet_VAE_RQ_scheme1, UNet_VAE_RQ_scheme2, UNet_VAE_Stacked
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_recon
 
 #image_path = '/home/geoint/tri/github_files/test_img/number13458.TIF'
@@ -26,29 +24,26 @@ mask_true_path = '/home/geoint/tri/github_files/sentinel2_im/2016105_0.tif'
 
 use_cuda = True
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 im_type = image_path[30:38]
-#print(im_type)
+print('image type: ', im_type)
 segment=False
-alpha = 0.1
-unet_option = 'unet_vae_RQ_scheme3' # options: 'unet_vae_old', 'unet_vae_RQ_old', 'unet_vae_RQ_allskip_trainable', 'unet_vae_RQ_torch', 'unet_vae_RQ_scheme3'
-image_option = "noisy" # "clean" or "noisy"
+alpha = 0.0
+unet_option = 'unet_vae_stacked' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
+image_option = "clean" # "clean" or "noisy"
 
 ##################################
-def rescale(image):
+def rescale(image): ## function to rescale image for visualization
     map_img =  np.zeros((256,256,3))
     for band in range(3):
         p2, p98 = np.percentile(image[:,:,band], (2, 98))
         map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
     return map_img
 
-def rescale_truncate(image):
-
+def rescale_truncate(image): ## function to rescale image for visualization
     if np.amin(image) < 0:
         image = np.where(image < 0,0,image)
     if np.amax(image) > 1:
         image = np.where(image > 1,1,image) 
-
     map_img =  np.zeros((256,256,3))
     for band in range(3):
         p2, p98 = np.percentile(image[:,:,band], (2, 98))
@@ -75,15 +70,19 @@ def jpg_to_tensor(filepath=image_path):
         img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
 
     pil = np.array(img_data)
+
     if im_type != "sentinel":
         pil=pil/255
+    else:
+        pil=(pil - np.min(pil)) / (np.max(pil) - np.min(pil))
+
+    # print(np.max(pil))
+    # print(np.min(pil))
 
     row,col,ch= pil.shape
-    sigma = 0.002 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
+    sigma = 0.01 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
-
-    #pil_to_tensor = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
     transform_tensor = transforms.ToTensor()
     if use_cuda:
         noisy_tensor = transform_tensor(noisy).cuda()
@@ -93,15 +92,14 @@ def jpg_to_tensor(filepath=image_path):
 
 #accept a torch tensor, convert it to a jpg at a certain path
 def tensor_to_jpg(tensor):
-    #tensor = tensor.view(tensor.shape[1:])
     tensor = tensor.squeeze(0)
     if use_cuda:
         tensor = tensor.cpu()
-    #tensor_to_pil = torchvision.transforms.Compose([torchvision.transforms.ToPILImage()])
-    #pil = tensor_to_pil(tensor)
     pil = tensor.permute(1, 2, 0).numpy()
     pil = np.array(pil)
-    pil = rescale_truncate(pil)
+    pil = rescale(pil)
+
+    #pil = rescale_truncate(pil)
     return pil
 
 #predict image
@@ -118,50 +116,41 @@ def predict_img(net,
     elif image_option=='noisy':
         img = jpg_to_tensor(filepath)[1] ## noisy image
 
+    
+
     img = img.to(device=device, dtype=torch.float32)
 
     with torch.no_grad():
         output = net(img)
 
-        
-
         if unet_option == 'unet':
             output = output
-        else:
+            return output.cpu()
+        elif unet_option=='unet_vae_stacked':
+            output = output[1]
+            return output.cpu()
+        elif unet_option == 'unet_vae_RQ_scheme3':
             err = output[5]
             output = output[3]
+            print("relative error: ", err)
+            plt.plot(err.cpu())
+            plt.show()
 
-        print(output.shape)
+            return output.cpu()
+        elif unet_option == 'rqunet_vae_scheme1_pareto':
+            s = output[6]
+            Wy = output[5]
+            output = output[3]
 
-        # if  output.detach().cpu().numpy().all() == 0:
-        #     print("output is zero")
-        #     print(output.cpu())
+            return output.cpu(), s.cpu().numpy(), Wy.cpu().numpy()
 
-        #full_mask = output.cpu()
-        #full_mask = full_mask.reshape(256,256,3)
-        #print(full_mask.shape)
-
-        # tf = transforms.Compose([
-        #     transforms.ToPILImage(),
-        #     transforms.Resize((256, 256)),
-        #     transforms.ToTensor()
-        # ])
-
-        #full_mask = tf(output.cpu()).squeeze()
-        #print(full_mask.shape)
-
-        
-        print("relative error: ", err)
-
-    return output.cpu()
+    
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='github_checkpoints/checkpoint_unet_vae_old_epoch20_0.0_recon.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
-    #parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', default='F:\\NAIP\\256\\pa101\\test\\sat\\number13985.TIF', help='Filenames of input images', required=True)
-    #parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', default='out/predict1.tif', help='Filenames of output images')
     parser.add_argument('--viz', '-v', action='store_true',
                         help='Visualize the images as they are processed')
     parser.add_argument('--no-save', '-n', action='store_true', help='Do not save the output masks')
@@ -183,64 +172,83 @@ def get_output_filenames(args):
 
 if __name__ == '__main__':
     args = get_args()
-    #in_files = args.input
-    #out_files = get_output_filenames(args)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_4-18_epoch10_0.0_recon.pth'
+    model_sentinel_saved = '/home/geoint/tri/github_files/github_checkpoints/checkpoint_unet_vae_old_epoch19_sentinel_5-7_recon.pth'
+
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3)
-    
+        net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
-    
-    elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(3,alpha)
-
+    # elif unet_option == 'unet_vae_RQ_allskip_trainable':
+    #     net = UNet_VAE_RQ_old_trainable(3,alpha)
     elif unet_option == 'unet_vae_RQ_torch':
-        #net = UNet_VAE_RQ_old_torch(3, alpha = alpha)
-        net = UNet_VAE_RQ_new_torch(3, segment, alpha)
-
+        net = UNet_VAE_RQ_old_torch(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme3':
         net = UNet_VAE_RQ_scheme3(3, segment, alpha)
     elif unet_option == 'unet_vae_RQ_scheme1':
         net = UNet_VAE_RQ_scheme1(3, segment, alpha)
+    elif unet_option == 'unet_vae_RQ_scheme2':
+        net = UNet_VAE_RQ_scheme2(3, segment, alpha)
+    elif unet_option == 'unet_vae_stacked':
+        net = UNet_VAE_Stacked(3, segment, alpha, device, model_sentinel_saved)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    elif unet_option == 'rqunet_vae_scheme1_pareto':
+        net = RQUNet_VAE_scheme1_Pareto(3, segment, alpha)
+
+    
     #logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
 
     net.to(device=device)
-    net.load_state_dict(torch.load(args.model, map_location=device))
+
+    if unet_option != 'unet_vae_stacked':
+        if im_type == 'sentinel':
+            net.load_state_dict(torch.load(model_sentinel_saved, map_location=device))
+        else:
+            net.load_state_dict(torch.load(model_saved, map_location=device))
+
+    else:
+        net = net
 
     logging.info('Model loaded!')
-
-    #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
-    #img = Image.open(filename)
 
-    mask = predict_img(net=net,
+
+    if unet_option == 'rqunet_vae_scheme1_pareto':
+        mask, s, Wy = predict_img(net=net,
                         filepath=image_path,
                         scale_factor=1,
                         out_threshold=0.5,
                         device=device)
 
-    print("mask shape: ", mask.shape)
+        x_range = np.arange(65536)
+        plt.plot(s, x_range, color='blue', label = 's')
+        plt.plot(Wy, x_range, color='red', label = 'Wy')
+        plt.legend()
+        plt.show()
 
+        
+    else:
+        mask = predict_img(net=net,
+                        filepath=image_path,
+                        scale_factor=1,
+                        out_threshold=0.5,
+                        device=device)
 
-    #out_files = 'out/predict_va_softshrink_all_0.02.tif'
-    out_files = 'out/predict_va_vae_recon_epoch1'
-    im_out_files = 'out/img'
     
-    if not args.no_save:
-        out_filename = out_files
-        #result = mask_to_image(mask)
-        #arr_to_tif(raster_f=image_path, segments=mask, out_tif=out_files)
-        #result.save(out_filename)
-        logging.info(f'Mask saved to {out_filename}')
+
+    # out_files = 'out/predict_va_vae_recon_epoch1'
+    # im_out_files = 'out/img'
+    
+    # if not args.no_save:
+    #     out_filename = out_files
+    #     logging.info(f'Mask saved to {out_filename}')
 
     mask = tensor_to_jpg(mask)
-    #print(mask)
     if image_option=='clean':
         img = jpg_to_tensor(image_path)[0]
     else:
@@ -248,7 +256,3 @@ if __name__ == '__main__':
     img = tensor_to_jpg(img)
 
     plot_img_and_mask_recon(img, mask)
-
-    if args.viz:
-        logging.info(f'Visualizing results for image {image_path}, close to continue...')
-        #plot_img_and_mask(img, mask)

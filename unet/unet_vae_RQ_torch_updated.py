@@ -245,8 +245,8 @@ def RieszQuincunxWaveletTransform_Forward(f, beta_D_I, psi_D_in):
     #print("shape d_in: ", d_in.shape)
 
 
-    for i in range(0, N+1):
-        for n in range(0, Scales+1):
+    for i in range(0, Scales+1):
+        for n in range(0, N+1):
             d_in[:,:,i,n] = torch.real( ifft2( ifftshift( F * torch.conj(psi_D_in[:,:,i,n]) ) ) )
     
     return c_I, d_in
@@ -563,7 +563,7 @@ class UNet_VAE_RQ_new_torch(nn.Module):
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False 
             if self.segment and i > (depth-3):
-                dropout = True
+                dropout = False
             else:
                 dropout = False
             shrink = True if i == 0 else False

@@ -26,41 +26,26 @@ from tqdm import tqdm
 
 from unet import UNet_VAE, UNet_VAE_old
 from unet import UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_new_torch, UNet_VAE_RQ_old_trainable
-from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
-
-dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
-#use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
-use_cuda = True
-
-##################################
-def rescale(image):
-    map_img =  np.zeros((256,256,3))
-    for band in range(3):
-        p2, p98 = np.percentile(image[:,:,band], (2, 98))
-        map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
-    return map_img
-
-###########
-# get data
-## Load data
 import os
 from collections import defaultdict
 import pickle
 from osgeo import gdal, gdal_array
 
+dir_checkpoint = Path('/home/geoint/tri/github_files/github_checkpoints/')
+#use cuda, or not? be prepared for a long wait if you don't have cuda capabilities.
+use_cuda = True
+
+###########
+# get data
+
 # load image folder path and image dictionary
 class_name = "va059"
-#data_dir = "F:\\NAIP\\"
 data_dir = "/home/geoint/tri/"
 data_dir = os.path.join(data_dir, class_name)
 
 # Create training data 
-def load_obj(name):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
-    
 def load_image_paths(path, name, mode, images):
     images[name] = {mode: defaultdict(dict)}
     # test, train, valid
@@ -85,7 +70,7 @@ def load_image_paths(path, name, mode, images):
                 elif ms_typ == "sat":
                     images[name][ttv_typ][ms_typ][scene_id] = fl
                  
-def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
+def data_generator(files, size=256, mode="train", batch_size=6):
     while True:
         all_scenes = list(files[mode]['sat'].keys())
         
@@ -95,8 +80,6 @@ def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
         X_fls = [files[mode]['sat'][scene_id] for scene_id in scene_ids]
         Y_fls = [files[mode]['map'][scene_id] for scene_id in scene_ids]        
         
-        #print(Y_fls)
-        # read in image to classify with gdal
         X_lst=[]
         for j in range(len(X_fls)):
             naip_fn = X_fls[j]
@@ -118,8 +101,6 @@ def data_generator(files, im_dict={}, size=256, mode="train", batch_size=6):
             if img_data.shape == (256,256,3):
                 X_lst.append(img_data)
 
-
-        #X = np.array(X_lst).astype(np.float32)
         X = np.array(X_lst)
         X = X/255
 
@@ -166,10 +147,8 @@ class satDataset(Dataset):
         Y = self.transforms(Y)
         #Y = label
         return {
-            #'image': torch.as_tensor(X.copy()).float(),
             'image': X,
             'mask': X
-            #'mask': torch.as_tensor(X.copy()).float()
         }
 
 def train_net(net,
@@ -185,11 +164,8 @@ def train_net(net,
     ### get data
     images = {}
     load_image_paths(data_dir, class_name, 'train', images)
-    im_dict = load_obj("images_dict")
 
-    #print(images[class_name]['train'])
-
-    train_data_gen = data_generator(images[class_name], im_dict, size=256, mode="train", batch_size=130)
+    train_data_gen = data_generator(images[class_name], size=256, mode="train", batch_size=130)
     images, labels = next(train_data_gen)
 
     train_images = images[:50]
@@ -201,7 +177,6 @@ def train_net(net,
     # 2. Split into train / validation partitions
     n_val = len(val_images)
     n_train = len(train_images)
-    #train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
 
     # 3. Create data loaders
     loader_args = dict(batch_size=batch_size, num_workers=4, pin_memory=True)
@@ -236,7 +211,6 @@ def train_net(net,
     #network optimizer set up
     optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)  # goal: maximize Dice score
-    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=2)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.MSELoss()
     global_step = 0
@@ -261,8 +235,6 @@ def train_net(net,
                 images = images.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
 
-                #print("true mask shape: ", true_masks.shape)
-
                 images = torch.reshape(images, (batch_size,3,256,256))
                 true_masks = torch.reshape(true_masks, (batch_size,3,256,256))
 
@@ -275,26 +247,26 @@ def train_net(net,
 
                     if unet_option == 'unet' or unet_option == 'unet_1':
                         masked_output = output
+                        kl_loss = torch.zeros((1)).cuda()
 
                     elif unet_option == 'simple_unet':
                         masked_output = output
+                        kl_loss = torch.zeros((1)).cuda()
                     else:
                         masked_output = output[3]
-                    #masked_output = output
+
+                        mu = output[1]
+                        logvar = output[2]
 
                     print("masked_output shape: ", masked_output.shape)
                     print("true mask shape: ", true_masks.shape)
 
-                    mu = output[1]
-                    logvar = output[2]
+                    
                     
                     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
                     #kl_loss = torch.sum(output[4])
                     print("kl loss: ", kl_loss)
                     loss_items['kl_loss'].append(kl_loss.detach().cpu())
-
-                    #loss = criterion(masked_output.float(), true_masks.float()) 
-                            #+ dice_loss(F.softmax(masked_output, dim=1).float(),true_masks.float(),multiclass=True) 
 
                     #recon_loss = torch.sum((masked_output - true_masks)**2)
                     recon_loss = criterion(masked_output, true_masks)
@@ -308,7 +280,6 @@ def train_net(net,
                     print("total loss: ", loss)
 
                 optimizer.zero_grad()
-                #print('At step {}, loss is {}'.format(step, loss.data.cpu()))
                 loss.backward()
                 optimizer.step()
 
@@ -328,14 +299,6 @@ def train_net(net,
                     'epoch': epoch
                 })
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
-
-                #_, predicted = torch.max(masked_output.data, 1)
-                #total_train += true_masks.nelement()
-                #correct_train += predicted.eq(true_masks.data).sum().item()
-                #train_accuracy = 100 * correct_train/ total_train
-                #logging.info('Training accuracy: {}'.format(train_accuracy))
-
-                #print(net.named_parameters())
 
                 # Evaluation round
                 division_step = (n_train // (10 * batch_size))
@@ -366,7 +329,7 @@ def train_net(net,
                 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_{alpha}_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+            torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_4-18_epoch{number}_{alpha}_recon.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
             #torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_unet_epoch{}.pth'.format(epoch + 1)))
             logging.info(f'Checkpoint {epoch + 1} saved!')
 
@@ -377,11 +340,6 @@ def train_net(net,
     plt.legend(labels = ['reconstruction loss','kl loss','total loss'],loc='upper right')
     plt.show()
         
-
-        #if use_cuda:
-            #noise.data += sigma * torch.randn(noise.shape).cuda()
-        #else:
-            #noise.data += sigma * torch.randn(noise.shape)
 
 if __name__ == '__main__':
     #args = get_args()
@@ -395,12 +353,13 @@ if __name__ == '__main__':
     # n_classes is the number of probabilities you want to get per pixel
     
     alpha = 0.0
+    segment = False
     unet_option = "unet_vae_old"
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(3)
     elif unet_option == 'unet_vae_old':
-        net = UNet_VAE_old(3)
+        net = UNet_VAE_old(3, segment)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(3, alpha)
     elif unet_option == 'unet_vae_RQ_allskip_trainable':

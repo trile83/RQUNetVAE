@@ -358,7 +358,7 @@ def RieszWaveletTruncation(d_in, alpha, activation_method):
 # Riesz-Quincunx
 
 class RieszQuincunx(nn.Module):
-    def __init__(self, alpha=None):
+    def __init__(self, alpha):
         super(RieszQuincunx, self).__init__()
 
         if alpha == None:
@@ -621,6 +621,7 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
         self.in_channels = in_channels
         self.start_filts = start_filts
         self.depth = depth
+        self.alpha = Parameter(torch.tensor(0.0), requires_grad=True).cuda() # create a tensor out of alpha
 
         self.down_convs = []
         self.up_convs = []

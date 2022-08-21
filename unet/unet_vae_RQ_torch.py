@@ -245,8 +245,8 @@ def RieszQuincunxWaveletTransform_Forward(f, beta_D_I, psi_D_in):
     #print("shape d_in: ", d_in.shape)
 
 
-    for i in range(0, N+1):
-        for n in range(0, Scales+1):
+    for i in range(0, Scales+1):
+        for n in range(0, N+1):
             d_in[:,:,i,n] = torch.real( ifft2( ifftshift( F * torch.conj(psi_D_in[:,:,i,n]) ) ) )
     
     return c_I, d_in
@@ -324,8 +324,8 @@ class RieszQuincunx(nn.Module):
         #alpha = self.alpha.detach().cpu().numpy()
         #alpha = self.alpha.cpu().detach().numpy()
 
-        print("input tensor shape: ", f.shape)
-        print("alpha value: ", self.alpha)
+        # print("input tensor shape: ", f.shape)
+        # print("alpha value: ", self.alpha)
         
         #alpha = 0
 
@@ -413,7 +413,7 @@ class DownConv(nn.Module):
     A helper Module that performs 2 convolutions and 1 MaxPool.
     A ReLU activation follows each convolution.
     """
-    def __init__(self, in_channels, out_channels, alpha, segment = True, pooling=True, dropout=False, shrink = False):
+    def __init__(self, in_channels, out_channels, alpha, segment = True, pooling=True, batchnorm=True, dropout=False, shrink = False):
         super(DownConv, self).__init__()
 
         self.in_channels = in_channels
@@ -422,10 +422,11 @@ class DownConv(nn.Module):
         self.dropout = dropout
         self.shrink = shrink
         self.segment = segment
+        self.batchnorm = batchnorm
 
         self.conv1 = conv3x3(self.in_channels, self.out_channels)
         self.conv2 = conv3x3(self.out_channels, self.out_channels)
-        self.batchnorm = nn.BatchNorm2d(out_channels)
+        self.batchnormalize = nn.BatchNorm2d(out_channels)
 
         if self.pooling:
             self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -440,7 +441,7 @@ class DownConv(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         if self.segment:
-            x = self.batchnorm(x)
+            x = self.batchnormalize(x)
         before_pool = x
     
         if self.shrink:
@@ -506,7 +507,7 @@ class UpConv(nn.Module):
 class UNet_VAE_RQ_old_torch(nn.Module):
     def __init__(self, num_classes, segment, alpha=0.0, in_channels=3, depth=5, 
                  start_filts=64, up_mode='upsample', 
-                 merge_mode='concat', enc_out_dim=1024, latent_dim=64):
+                 merge_mode='concat', enc_out_dim=1024, latent_dim=100):
         """
         Arguments:
             in_channels: int, number of channels in the input tensor.
@@ -545,7 +546,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
 
         self.num_classes = num_classes
         self.segment = segment
-        self.alpha = alpha
+        #self.alpha = alpha
         self.in_channels = in_channels
         self.start_filts = start_filts
         self.depth = depth
@@ -557,14 +558,14 @@ class UNet_VAE_RQ_old_torch(nn.Module):
         for i in range(depth):
             ins = self.in_channels if i == 0 else outs
             outs = self.start_filts*(2**i)
-            pooling = True if i < depth-1 else False 
-            if self.segment and i > (depth-3):
-                dropout = True
-            else:
-                dropout = False
+            pooling = True if i < depth-1 else False
+            batchnorm = True if i < depth-1 else False
+            
+            dropout = False
             shrink = True if i == 0 else False
+            #shrink = True if i < depth-3 else False
 
-            down_conv = DownConv(ins, outs, segment=self.segment, alpha=self.alpha, pooling=pooling, dropout=dropout, shrink=shrink)
+            down_conv = DownConv(ins, outs, segment=self.segment, alpha=0.3, pooling=pooling, batchnorm=batchnorm, dropout=dropout, shrink=shrink)
             self.down_convs.append(down_conv)
 
         #Flatten
@@ -593,7 +594,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
         self.fc3 = nn.Linear(latent_dim, 262144)
         self.act = nn.ReLU()
 
-        self.reset_params()
+        #self.reset_params()
 
     @staticmethod
     def weight_init(m):
@@ -623,13 +624,11 @@ class UNet_VAE_RQ_old_torch(nn.Module):
         return self.bottleneck(self.encoder(x))[0]
 
     def forward(self, x):
-        #h = self.encoder(x)
-        encoder_outs = []
-         
-        # encoder pathway, save outputs for merging
+        # encoder pathway
+        s_dict = {}  
         for i, module in enumerate(self.down_convs):
-            x, before_pool = module(x)
-            encoder_outs.append(before_pool)
+            x, s = module(x)
+            s_dict[i] = s   
 
         #print("x shape: ", x.shape)
         #print(type(x))
@@ -638,7 +637,7 @@ class UNet_VAE_RQ_old_torch(nn.Module):
 
         # calculate z, mu, and logvar
         z, mu, logvar = self.bottleneck(x_encoded)
-        z = self.act(self.fc3(z))
+        z = self.act(self.fc3(z.clone()))
         z = torch.reshape(z, x.shape)
 
         #print(self.down_convs)
@@ -646,16 +645,14 @@ class UNet_VAE_RQ_old_torch(nn.Module):
 
         # decoder pathway
         for i, module in enumerate(self.up_convs):
-            before_pool = encoder_outs[-(i+2)]
+            s = s_dict[self.depth-2-i]
             if i == 0:
-                x = module(before_pool, z)
+                x = module(s, z)
             else:
-                x = module(before_pool, x)
+                x = module(s, x)
 
         x = self.conv_final(x)
-
         x_recon = F.relu(x)
-
         #kl_loss = -0.5 * (1 + logvar - torch.square(mu) - torch.exp(logvar))
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 

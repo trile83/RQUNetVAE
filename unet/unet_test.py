@@ -60,7 +60,7 @@ class DownConv(nn.Module):
     A helper Module that performs 2 convolutions and 1 MaxPool.
     A ReLU activation follows each convolution.
     """
-    def __init__(self, in_channels, out_channels, pooling=True, batchnorm=False, dropout=False):
+    def __init__(self, in_channels, out_channels, pooling=True, batchnorm=True, dropout=False):
         super(DownConv, self).__init__()
 
         self.in_channels = in_channels
@@ -81,8 +81,8 @@ class DownConv(nn.Module):
             self.drop = nn.Dropout(0.5)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
         if self.batchnorm:
             x = self.batchnormalize(x)
         before_pool = x
@@ -98,7 +98,7 @@ class UpConv(nn.Module):
     A helper Module that performs 2 convolutions and 1 UpConvolution.
     A ReLU activation follows each convolution.
     """
-    def __init__(self, in_channels, out_channels, 
+    def __init__(self, in_channels, out_channels, batchnorm=True,
                  merge_mode='concat', up_mode='bilinear'):
         super(UpConv, self).__init__()
 
@@ -106,7 +106,9 @@ class UpConv(nn.Module):
         self.out_channels = out_channels
         self.merge_mode = merge_mode
         self.up_mode = up_mode
-        self.batchnorm = nn.BatchNorm2d(out_channels)
+        self.batchnorm = batchnorm
+        if self.batchnorm:
+            self.batchnormalize = nn.BatchNorm2d(out_channels)
 
         self.upconv = upconv2x2(self.in_channels, self.out_channels, 
             mode=self.up_mode)
@@ -128,13 +130,14 @@ class UpConv(nn.Module):
             from_up: upconv'd tensor from the decoder pathway
         """
         from_up = self.upconv(from_up)
-        from_up = self.batchnorm(from_up)
+        if self.batchnorm:
+            from_up = self.batchnormalize(from_up)
         if self.merge_mode == 'concat':
             x = torch.cat((from_up, from_down), 1)
         else:
             x = from_up + from_down
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
         return x
 
 
@@ -212,9 +215,11 @@ class UNet_test(nn.Module):
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False
             batchnorm = True if i < depth-1 else False
-            dropout = True if i > (depth-3) else False
+            #batchnorm = False
+            dropout = False
 
             down_conv = DownConv(ins, outs, pooling=pooling, batchnorm=batchnorm, dropout=dropout)
+            #down_conv = DownConv(ins, outs, pooling=pooling, dropout=dropout)
             self.down_convs.append(down_conv)
 
         # create the decoder pathway and add to a list
@@ -222,12 +227,14 @@ class UNet_test(nn.Module):
         for i in range(depth-1):
             ins = outs
             outs = ins // 2
-            up_conv = UpConv(ins, outs, up_mode=up_mode,
+            #batchnorm = True if i depth-2 else False
+            batchnorm = True
+            up_conv = UpConv(ins, outs, up_mode=up_mode, batchnorm=batchnorm,
                 merge_mode=merge_mode)
             self.up_convs.append(up_conv)
 
-        #self.conv_final = conv1x1(outs, self.num_classes)
-        self.conv_final = conv_out(outs, self.num_classes)
+        self.conv_final = conv1x1(outs, self.num_classes)
+        #self.conv_final = conv_out(outs, self.num_classes)
 
         # add the list of modules to current module
         self.down_convs = nn.ModuleList(self.down_convs)
@@ -251,16 +258,25 @@ class UNet_test(nn.Module):
         encoder_outs = []
          
         # encoder pathway, save outputs for merging
-        for i, module in enumerate(self.down_convs):
-            x, before_pool = module(x)
-            encoder_outs.append(before_pool)
+        # for i, module in enumerate(self.down_convs):
+        #     x, before_pool = module(x)
+        #     encoder_outs.append(before_pool)
 
+        # for i, module in enumerate(self.up_convs):
+        #     before_pool = encoder_outs[-(i+2)]
+        #     x = module(before_pool, x)
+
+        s_dict = {}  
+        for i, module in enumerate(self.down_convs):
+            x, s = module(x)
+            s_dict[i] = s        
+
+        # Step 2 - Decoder:
         for i, module in enumerate(self.up_convs):
-            before_pool = encoder_outs[-(i+2)]
-            x = module(before_pool, x)
+            s = s_dict[self.depth-2-i]
+            x = module(s, x)
 
         #print(self.down_convs)
-
         #print(self.up_convs)
 
         # No softmax is used. This means you need to use

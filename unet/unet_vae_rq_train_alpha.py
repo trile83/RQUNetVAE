@@ -364,12 +364,8 @@ class RieszQuincunx(nn.Module):
         super(RieszQuincunx, self).__init__()
 
         self.alpha = alpha
-            
-        #self.alpha.requiresGrad = True # set requiresGrad to true!
-
         self.scale = 3
         self.gamma = 1.2
-
 
     def forward(self, x):
 
@@ -387,8 +383,6 @@ class RieszQuincunx(nn.Module):
 
         print("input tensor shape: ", f.shape)
         print("alpha value: ", self.alpha)
-        
-        alpha = self.alpha
 
         #torch.enable_grad() 
 
@@ -414,14 +408,14 @@ class RieszQuincunx(nn.Module):
                 # Shrinkage:
                 #alpha = self.alpha
                 activation_method = "SoftShrink"
-                d_in_1 = RieszWaveletTruncation(d_in, alpha, activation_method)
+                d_in_1 = RieszWaveletTruncation(d_in, self.alpha, activation_method)
 
                 # Inverse wavelet: 
                 f_re[j,i,:,:] = RieszQuincunxWaveletTransform_Inverse(c_I, d_in_1, beta_I, psi_in)
 
         f_re = f_re.cuda()
 
-        alpha_grad = alpha.grad
+        alpha_grad = self.alpha.grad
         print("alpha gradient: ", alpha_grad)
 
         return f_re
@@ -441,7 +435,7 @@ def conv3x3(in_channels, out_channels, stride=1,
         groups=groups)
 
 # decoding (up) convolution module for decoder block
-def upconv2x2(in_channels, out_channels, idx, mode='transpose'):
+def upconv2x2(in_channels, out_channels, mode='transpose'):
     if mode == 'transpose':
         return nn.ConvTranspose2d(
             in_channels,
@@ -451,15 +445,9 @@ def upconv2x2(in_channels, out_channels, idx, mode='transpose'):
     else:
         # out_channels is always going to be the same
         # as in_channels
-        if idx == 0:
-            return nn.Sequential(
-                nn.Upsample(mode='bilinear', scale_factor=2),
-                conv1x1(in_channels, out_channels)
-            )
-        else:
-            return nn.Sequential(
-                nn.Upsample(mode='bilinear', scale_factor=2),
-                conv1x1(in_channels, out_channels))
+        return nn.Sequential(
+            nn.Upsample(mode='bilinear', scale_factor=2),
+            conv1x1(in_channels, out_channels))
 
 def conv1x1(in_channels, out_channels, groups=1):
     return nn.Conv2d(
@@ -484,7 +472,7 @@ class DownConv(nn.Module):
     A helper Module that performs 2 convolutions and 1 MaxPool.
     A ReLU activation follows each convolution.
     """
-    def __init__(self, in_channels, out_channels, alpha, pooling=True, dropout=False, shrink=False):
+    def __init__(self, in_channels, out_channels, alpha, segment=True, pooling=True, batchnorm=True, dropout=False, shrink=False):
         super(DownConv, self).__init__()
 
         self.in_channels = in_channels
@@ -492,11 +480,13 @@ class DownConv(nn.Module):
         self.alpha = alpha
         self.pooling = pooling
         self.dropout = dropout
+        self.segment = segment
         self.shrink = shrink
+        self.batchnorm = batchnorm
         
         self.conv1 = conv3x3(self.in_channels, self.out_channels)
         self.conv2 = conv3x3(self.out_channels, self.out_channels)
-        self.batchnorm = nn.BatchNorm2d(out_channels)
+        self.batchnormalize = nn.BatchNorm2d(out_channels)
 
         if self.pooling:
             self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -510,12 +500,11 @@ class DownConv(nn.Module):
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-
+        if self.segment:
+            x = self.batchnormalize(x)
         before_pool = x
-
         if self.shrink:
             before_pool = self.s_shrink(before_pool)
-
         if self.pooling:
             x = self.pool(x)
         if self.dropout:
@@ -529,19 +518,18 @@ class UpConv(nn.Module):
     A helper Module that performs 2 convolutions and 1 UpConvolution.
     A ReLU activation follows each convolution.
     """
-    def __init__(self, in_channels, out_channels, idx,
+    def __init__(self, in_channels, out_channels, segment=True,
                  merge_mode='concat', up_mode='bilinear'):
         super(UpConv, self).__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.segment = segment
         self.merge_mode = merge_mode
         self.up_mode = up_mode
         self.batchnorm = nn.BatchNorm2d(out_channels)
-        #self.unflatten = UnFlatten()
-        self.idx = idx
 
-        self.upconv = upconv2x2(self.in_channels, self.out_channels, self.idx,
+        self.upconv = upconv2x2(self.in_channels, self.out_channels,
             mode=self.up_mode)
 
         # skip connection from decoder to encoder
@@ -561,7 +549,8 @@ class UpConv(nn.Module):
             from_up: upconv'd tensor from the decoder pathway
         """
         from_up = self.upconv(from_up)
-
+        if self.segment:
+            from_up = self.batchnorm(from_up)
         if self.merge_mode == 'concat':
             x = torch.cat((from_up, from_down), 1)
         else:
@@ -571,8 +560,8 @@ class UpConv(nn.Module):
         return x
 
 
-class UNet_VAE_RQ_old_trainable(nn.Module):
-    def __init__(self, num_classes, alpha, in_channels=3, depth=5, 
+class UNet_VAE_RQ_trainable(nn.Module):
+    def __init__(self, num_classes, segment, alpha, in_channels=3, depth=5, 
                  start_filts=64, up_mode='upsample', 
                  merge_mode='concat', enc_out_dim=1024, latent_dim=64):
         """
@@ -586,7 +575,7 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
                 for transpose convolution or 'upsample' for nearest neighbour
                 upsampling.
         """
-        super(UNet_VAE_RQ_old_trainable, self).__init__()
+        super(UNet_VAE_RQ_trainable, self).__init__()
 
         if up_mode in ('transpose', 'upsample'):
             self.up_mode = up_mode
@@ -612,16 +601,14 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
                              "depth channels (by half).")
 
         self.num_classes = num_classes
+        self.segment = segment
         self.in_channels = in_channels
         self.start_filts = start_filts
         self.depth = depth
 
         ## create alpha parameters in UNet architecture
-        if alpha == None:
-            self.alpha = Parameter(torch.tensor(0.0)) # create a tensor 0
-        else:
-            self.alpha = Parameter(torch.tensor(float(alpha))) # create a tensor out of alpha
-
+        #self.alpha = Parameter(torch.tensor(0.0)) # create a tensor 0
+        self.alpha = Parameter(torch.tensor(0.0)) # create a tensor out of alpha
         self.alpha.data.uniform_(0, 1)
 
         self.down_convs = []
@@ -632,11 +619,14 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
             ins = self.in_channels if i == 0 else outs
             outs = self.start_filts*(2**i)
             pooling = True if i < depth-1 else False
+            batchnorm = True if i < depth-1 else False
+            if self.segment and i > (depth-3):
+                dropout = False
+            else:
+                dropout = False
             shrink = True
-            #dropout = True if i > (depth-3) else False
-            dropout = False
 
-            down_conv = DownConv(ins, outs, self.alpha, pooling=pooling, dropout=dropout, shrink=shrink)
+            down_conv = DownConv(ins, outs, self.alpha, self.segment, batchnorm=batchnorm, pooling=pooling, dropout=dropout, shrink=shrink)
             self.down_convs.append(down_conv)
 
         #Flatten
@@ -648,7 +638,7 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
         for i in range(depth-1):
             ins = outs
             outs = ins // 2
-            up_conv = UpConv(ins, outs, i, up_mode=up_mode,
+            up_conv = UpConv(ins, outs, self.segment, up_mode=up_mode,
                 merge_mode=merge_mode)
             self.up_convs.append(up_conv)
 
@@ -665,8 +655,7 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
         self.fc3 = nn.Linear(latent_dim, 262144)
         self.act = nn.ReLU()
 
-        #self.reset_params()
-
+        self.reset_params()
 
     @staticmethod
     def weight_init(m):
@@ -696,13 +685,12 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
         return self.bottleneck(self.encoder(x))[0]
 
     def forward(self, x):
-        #h = self.encoder(x)
-        encoder_outs = []
-         
-        # encoder pathway, save outputs for merging
+
+        # encoder pathway
+        s_dict = {}  
         for i, module in enumerate(self.down_convs):
-            x, before_pool = module(x)
-            encoder_outs.append(before_pool)
+            x, s = module(x)
+            s_dict[i] = s
 
         x_encoded = self.flatten(x)
 
@@ -716,14 +704,13 @@ class UNet_VAE_RQ_old_trainable(nn.Module):
 
         # decoder pathway
         for i, module in enumerate(self.up_convs):
-            before_pool = encoder_outs[-(i+2)]
+            s = s_dict[5-2-i]
             if i == 0:
-                x = module(before_pool, z)
+                x = module(s, z)
             else:
-                x = module(before_pool, x)
+                x = module(s, x)
 
         x = self.conv_final(x)
-
         x_recon = F.relu(x)
 
         #kl_loss = -0.5 * (1 + logvar - torch.square(mu) - torch.exp(logvar))

@@ -20,9 +20,10 @@ import itertools
 import pickle
 from numpy import linalg as LA
 from datetime import date
+import matplotlib
 
 from unet import UNet_VAE
-from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_trainable, UNet_VAE_RQ_old_torch
+from unet import UNet_VAE_old, UNet_VAE_RQ_old, UNet_VAE_RQ_test, UNet_VAE_RQ_old_torch
 from unet import UNet_VAE_RQ_new_torch, UNet_VAE_RQ_scheme3, UNet_test
 from unet import UNet_VAE_RQ_scheme1, UNet_RQ
 from utils.utils import plot_img_and_mask, plot_img_and_mask_3, plot_img_and_mask_5, plot_img_and_mask_4
@@ -378,19 +379,23 @@ def plot_accuracy(label, accuracy, std, index):
 
     # change class number to class name for categorical display
     label_line = label_line.astype(str)
-    label_line[label_line == '0'] = "Tree+Grass"
-    label_line[label_line == '1'] = "Concrete"
+    label_line[label_line == '0'] = "Vegetation"
+    label_line[label_line == '1'] = "Impervious"
     #label_line[label_line == '2'] = "Concrete"
 
     plt.rcParams["figure.figsize"] = [20, 10]
     # plt.rcParams["figure.autolayout"] = True
     ax1 = plt.subplot()
-    ax1.set_ylabel('class name')
-    l1, = ax1.plot(label_line, label='train label', color='red')
+    ax1.set_ylabel('Class Label')
+    l1, = ax1.plot(label_line, label='Label', color='red')
+    # plt.yticks(rotation=90, labelpad=15)
+    ax1.set_yticklabels(["Impervious", "Vegetation"], rotation=0, fontdict={'fontsize':18})
+    ax1.set_xlabel('Pixel Index')
     ax2 = ax1.twinx()
-    ax2.set_ylabel('accuracy')
-    l2 = ax2.errorbar(range(256), accuracy_line, yerr = std_line, barsabove=True, fmt="bo", label='accuracy')
-    plt.legend([l1, l2], ['train label', 'accuracy'])
+    ax2.set_ylabel('Predicted Pixel Accuracy')
+    l2 = ax2.errorbar(range(256), accuracy_line, yerr = std_line, barsabove=True, fmt="bo", label='Pixel Accuracy')
+    # plt.xlabel('Pixel Index')
+    # plt.legend([l1, l2], ['Label', 'Pixel Accuracy'], loc='right')
     plt.savefig(name, bbox_inches='tight')
     plt.show()
 
@@ -525,8 +530,6 @@ if __name__ == '__main__':
         net = UNet_RQ(class_num, segment, alpha)
     elif unet_option == 'unet_vae_RQ_old':
         net = UNet_VAE_RQ_old(class_num, alpha)
-    elif unet_option == 'unet_vae_RQ_allskip_trainable':
-        net = UNet_VAE_RQ_old_trainable(class_num, alpha)
     elif unet_option == 'unet_vae_RQ_torch':
         net = UNet_VAE_RQ_old_torch(class_num, segment, alpha)
         #net = UNet_VAE_RQ_new_torch(3, segment, alpha)
@@ -609,6 +612,8 @@ if __name__ == '__main__':
 
     #plot_img_and_mask_5(rgb_im, label, mean)
 
+    matplotlib.rcParams.update({'font.size': 20})
+
     varmat_pickle_name = '/home/geoint/tri/github_files/unet_vae_RQ_varmat_5-20.pickle'
     # save pickle file
     with open(varmat_pickle_name, 'wb') as input_file:
@@ -624,15 +629,15 @@ if __name__ == '__main__':
     accuracy_map, accu_std = get_accuracy_map(pred_masks_unetvaerq, label, loop_num, tensor_to_jpg(noisy_im))
     plot_accuracy(label, accuracy_map, accu_std, index=127)
 
-    draw_accu_norm_dist(accuracy_map, accu_std, label, class_num_list = [0,1])
-    # draw_accu_norm_dist(accuracy_map, accu_std, label, class_num = 1)
-    # draw_accu_norm_dist(accuracy_map, accu_std, label, class_num = 2)
+    # draw_accu_norm_dist(accuracy_map, accu_std, label, class_num_list = [0,1])
+    # # draw_accu_norm_dist(accuracy_map, accu_std, label, class_num = 1)
+    # # draw_accu_norm_dist(accuracy_map, accu_std, label, class_num = 2)
 
-    draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 0)
-    draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 1)
-    # draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 2)
+    # draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 0)
+    # draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 1)
+    # # draw_accu_norm_pixel(accuracy_map, accu_std, label, class_num = 2)
 
-    det_mat, class_maxdet_index = compute_determinant_covar(label_mode, var_mat)
+    # det_mat, class_maxdet_index = compute_determinant_covar(label_mode, var_mat)
     # print(det_mat)
     # print(class_maxdet_index)
     # for i in class_maxdet_index.keys():

@@ -6,11 +6,11 @@ The UNet code is using a DataLoader from PyTorch to load data inside the model f
 The data generation process in the training script is used for the data with a specific path type. For example, input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
 ## On the main branch:<br>
 
-To run the predict file for one image, users can run the following command: <br>
+To run the training file for segmenetation, users can run the following command: <br>
 ```python unet_vae_2class_segment_train.py```
 -Users can specify the path to store the model since it would save every epoch.<br>
 
-To run the training file, users can run the the following command: <br>
+To run the predict file for segmentation, users can run the the following command: <br>
 ```python unet_vae_2class_segment_predict.py```
 -User will need to specify the path to load the saved model in "model_saved" variable in the script.<br>
 

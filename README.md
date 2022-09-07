@@ -41,16 +41,21 @@ In the "unetvae_reconstruct_predict.py" file<br>
 ### Denoising
 #### Scheme 1
 <p align = "center"><img src = "/figs/rqunetvae_results/unetvaeRQ_scheme1_noisy.png"></p>
-
 <p align = "center">
 Fig.1 - RQUNet-VAE Denoising Scheme 1
 </p>
 
 ### Reconstruction
 #### Scheme 3
-<figure><img src="/figs/rqunetvae_results/stacked_unet_10blocks_recon.png" alt="Trulli" style="width:100%"><figcaption align = "right"><b>Fig.2 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 10 blocks</b></figcaption></figure>
+<p align = "center"><img src = "/figs/rqunetvae_results/stacked_unet_10blocks_recon.png"></p>
+<p align = "center">
+Fig.2 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 10 blocks
+</p>
 
-<figure><img src="/figs/rqunetvae_results/stacked_unet_20blocks_recon.png" alt="Trulli" style="width:100%"><figcaption align = "right"><b>Fig.3 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 20 blocks</b></figcaption></figure>
+<p align = "center"><img src = "figs/rqunetvae_results/stacked_unet_20blocks_recon.png"></p>
+<p align = "center">
+Fig.3 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 20 blocks
+</p>
 
 
 

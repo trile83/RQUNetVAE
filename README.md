@@ -38,13 +38,3 @@ In the "unetvae_reconstruct_predict.py" file<br>
 3/ Users can change the segmentation option to perform prediction of reconstruction: "segment=False" is for reconstruction.<br>
 4/ Users can change the alpha level to perform prediction of reconstruction: between 0 and 1 for 'unet_vae_RQ_scheme1'. The larger the alpha, the smoother the image after reconstruction, to perform image denoising.<br>
 5/ Users can change the image type to perform prediction of reconstruction: the current setup is to condition between Sentinel2 and NAIP data, using image path, to determine the normalization process, should change it accordingly. Recommendations: 'im_type=sentinel'.<br>
-
-## Results
-### Denoising
-#### Scheme 1
-<p align = "center"><img src = "/figs/rqunetvae_results/unetvaeRQ_scheme1_noisy.png"></p>
-<p align = "center">
-Fig.1 - RQUNet-VAE Denoising Scheme 1
-</p>
-
-

@@ -1,5 +1,5 @@
 # RQUNet-VAE using Pytorch
-![Model Architecture](/figs/rqunetvae_architecture.png)
+![Model Architecture](/figs/rqunetvae_architecture.png) <br>
 The UNet code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment in the "test" branch.<br>
 
 The UNet code is using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>

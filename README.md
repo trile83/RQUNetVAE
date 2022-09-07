@@ -1,9 +1,12 @@
 # Riesz-Quincunx UNet-Variational Autoencoder using Pytorch
 ![Model Architecture](/figs/rqunetvae_architecture.png) <br>
-The UNet code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment in the "test" branch.<br>
 
-The UNet code is using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>
-The data generation process in the training script is used for the data with a specific path type. For example, input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
+## Getting Started
+The code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment in the "test" branch.<br>
+The code is currently using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>
+
+## Dataset
+In this study, we used satellite images from NAIP dataset and Sentinel-2 data with 3 bands (RGB). The data generation process in the training script is used for the data with a specific path type. For example, input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
 ## On the main branch:<br>
 
 To run the training file for segmenetation, users can run the following command: <br>

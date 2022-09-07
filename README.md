@@ -1,6 +1,7 @@
 # Riesz-Quincunx-UNet Variational Auto-Encoder using Pytorch
 ![Model Architecture](/figs/rqunetvae_architecture.png) <br>
 
+This is the primary code for the [paper](https://arxiv.org/pdf/2208.12810.pdf)
 ## Getting Started
 The code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment. The code require at least Python 3.8.<br>
 The code is currently using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>

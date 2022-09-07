@@ -54,10 +54,4 @@ Fig.1 - RQUNet-VAE Denoising Scheme 1
 Fig.2 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 10 blocks
 </p>
 
-<p align = "center"><img src = "figs/rqunetvae_results/stacked_unet_20blocks_recon.png"></p>
-<p align = "center">
-Fig.3 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 20 blocks
-</p>
-
-
 

@@ -39,7 +39,12 @@ In the "unetvae_reconstruct_predict.py" file<br>
 
 ## Results
 ### Denoising
+#### Scheme 1
 <figure><img src="/figs/rqunetvae_results/unetvaeRQ_scheme1_noisy.png" alt="Trulli" style="width:100%"><figcaption align = "center"><b>Fig.1 - RQUNet-VAE Denoising Scheme 1</b></figcaption></figure>
+
+### Reconstruction
+#### Scheme 3
+<figure><img src="/figs/rqunetvae_results/stacked_unet_10blocks_recon.png" alt="Trulli" style="width:100%"><figcaption align = "center"><b>Fig.1 - RQUNet-VAE Denoising Scheme 1</b></figcaption></figure>
 
 
 

@@ -375,7 +375,7 @@ if __name__ == '__main__':
     alpha = 0.3
     segment = False
     class_num = 3
-    unet_option = "unet_vae_old"
+    unet_option = "unet_vae_RQ_scheme1"
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(class_num)

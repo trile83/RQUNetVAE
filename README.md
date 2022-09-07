@@ -1,4 +1,4 @@
-# RQUNet-VAE using Pytorch
+# Riesz-Quincunx UNet-Variational Autoencoder using Pytorch
 ![Model Architecture](/figs/rqunetvae_architecture.png) <br>
 The UNet code is constructed using PyTorch and users can the requirement/environment.yaml to clone the conda environment in the "test" branch.<br>
 

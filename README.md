@@ -48,7 +48,9 @@ In the "unetvae_reconstruct_predict.py" file<br>
 
 ### Reconstruction
 #### Scheme 3
-<figure><img src="/figs/rqunetvae_results/stacked_unet_10blocks_recon.png" alt="Trulli" style="width:100%"><figcaption align = "center"><b>Fig.2 - Stacked RQUNet-VAE Reconstruction Scheme 3</b></figcaption></figure>
+<figure><img src="/figs/rqunetvae_results/stacked_unet_10blocks_recon.png" alt="Trulli" style="width:100%"><figcaption align = "right"><b>Fig.2 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 10 blocks</b></figcaption></figure>
+
+<figure><img src="/figs/rqunetvae_results/stacked_unet_20blocks_recon.png" alt="Trulli" style="width:100%"><figcaption align = "right"><b>Fig.3 - Stacked RQUNet-VAE Reconstruction Scheme 3 - 20 blocks</b></figcaption></figure>
 
 
 

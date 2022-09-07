@@ -7,7 +7,9 @@ The code is constructed using PyTorch and users can the requirement/environment.
 The code is currently using a DataLoader from PyTorch to load data inside the model for training, therefore, need to modify the DataLoader code to correct data input path.<br>
 
 ## Dataset
-In this study, we used satellite images from National Agriculture Imagery Program [NAIP](https://www.usgs.gov/search?keywords=Products%20and%20Datasets) dataset with 3 bands (RGB) for segmentation experiment and [Sentinel-2](https://scihub.copernicus.eu/) data with 3 bands (RGB) for reconstruction and denoising experiments. The data generation process in the training script is used for the data with a specific path type. For example, Sentinel-2 input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
+In this study, we used satellite images from National Agriculture Imagery Program [NAIP](https://www.usgs.gov/search?keywords=Products%20and%20Datasets) dataset with 3 bands (RGB) for segmentation experiment and [Sentinel-2](https://scihub.copernicus.eu/) data with 3 bands (RGB) for reconstruction and denoising experiments. 
+The data is preprocessed to the size 256x256 for training and prediction stages.
+The data generation process for PyTorch DataLoader in the training script is used for the data with a specific path type. For example, Sentinel-2 input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
 
 ## On the main branch:
 To run the training file for segmenetation, users can run the following command: <br>

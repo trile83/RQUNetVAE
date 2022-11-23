@@ -1,6 +1,9 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+# *.log
+# INTERRUPTED.pth
+# directories
 wandb/
-*.log
-INTERRUPTED.pth
 checkpoints/
 utils/__pycache__/
 unet/__pycache__/

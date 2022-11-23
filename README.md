@@ -12,6 +12,7 @@ The data is preprocessed to the size 256x256 for training and prediction stages.
 The data generation process for PyTorch DataLoader in the training script is used for the data with a specific path type. For example, Sentinel-2 input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
 
 ## On the main branch:
+### When users already have sets of small cut of satellite images (e.g. 256x256) for efficient computation.
 To run the training file for segmenetation, users can run the following command: <br>
 ```python unet_vae_2class_segment_train.py```
 -Users can specify the path to store the model since it would save every epoch.<br>
@@ -31,6 +32,9 @@ To run the predict file for reconstruction for one image, users can run the foll
 To run the predict file for batch of images, users can run the following command: <br>
 ```python unetvae_recon_predict_batch.py```
 -User will need to specify the path to load the saved model in "model_saved" variable in the script.<br>
+
+### When users only have large satellite imagery that requires cutting smaller tiles on the fly
+Run the script ```train_large_scene.py``` and ```predict_large_scene.py```.
 
 In the "unetvae_reconstruct_predict.py" file<br>
 1/ Users can change the UNet option to perform prediction of reconstruction: 'unet_vae_old', 'unet_vae_RQ_scheme1', or 'unet_vae_RQ_scheme3'.<br>

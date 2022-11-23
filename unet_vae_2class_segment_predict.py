@@ -15,10 +15,12 @@ import torchvision
 from osgeo import gdal, gdal_array
 import matplotlib.pyplot as plt
 from skimage import exposure
+import tifffile
 import cv2
 import matplotlib.colors as pltc
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, precision_score, recall_score
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import jaccard_score
 import itertools
 
 from unet import UNet_VAE, UNet_RQ
@@ -62,11 +64,15 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     precision = precision_score(y_true, y_pred, average=None)
     recall = recall_score(y_true, y_pred, average=None)
 
+    iou = jaccard_score(y_pred, y_true, average=None)
+
     # print(classification_report(y_true, y_pred))
 
-    f1 = np.around(f1, 3)
-    precision = np.around(precision, 3)
-    recall = np.around(recall, 3)
+    # f1 = np.around(f1, 3)
+    # precision = np.around(precision, 3)
+    # recall = np.around(recall, 3)
+
+    # iou = np.around(iou, 3)
 
     #print(f1)
 
@@ -83,7 +89,7 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
 
     where_are_NaNs = np.isnan(con_mat)
     con_mat[where_are_NaNs] = 0
-    return con_mat, accuracy, round(balanced_accuracy,3), f1, precision, recall
+    return con_mat, accuracy, balanced_accuracy, f1, precision, recall, iou
 
 
 def plot_confusion_matrix(cm, class_names=['a', 'b', 'c'], name=''):
@@ -113,7 +119,7 @@ def plot_confusion_matrix(cm, class_names=['a', 'b', 'c'], name=''):
     
     plt.savefig(conf_mat_name, bbox_inches='tight')
     
-    plt.show()
+    plt.close()
 
 def rescale(image):
     map_img =  np.zeros((256,256,3))
@@ -125,22 +131,23 @@ def rescale(image):
 #accept a file path to a jpg, return a torch tensor
 def jpg_to_tensor(filepath):
 
-    naip_fn = filepath
-    driverTiff = gdal.GetDriverByName('GTiff')
-    naip_ds = gdal.Open(naip_fn, 1)
-    nbands = naip_ds.RasterCount
-    # create an empty array, each column of the empty array will hold one band of data from the image
-    # loop through each band in the image nad add to the data array
-    data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
-    for i in range(1, nbands+1):
-        band = naip_ds.GetRasterBand(i).ReadAsArray()
-        data[:, i-1] = band.flatten()
+    # naip_fn = filepath
+    # driverTiff = gdal.GetDriverByName('GTiff')
+    # naip_ds = gdal.Open(naip_fn, 1)
+    # nbands = naip_ds.RasterCount
+    # # create an empty array, each column of the empty array will hold one band of data from the image
+    # # loop through each band in the image nad add to the data array
+    # data = np.empty((naip_ds.RasterXSize*naip_ds.RasterYSize, nbands))
+    # for i in range(1, nbands+1):
+    #     band = naip_ds.GetRasterBand(i).ReadAsArray()
+    #     data[:, i-1] = band.flatten()
 
-    img_data = np.zeros((naip_ds.RasterYSize, naip_ds.RasterXSize, naip_ds.RasterCount),
-                    gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
-    for b in range(img_data.shape[2]):
-        img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
-        
+    # img_data = np.zeros((naip_ds.RasterYSize, naip_ds.RasterXSize, naip_ds.RasterCount),
+    #                 gdal_array.GDALTypeCodeToNumericTypeCode(naip_ds.GetRasterBand(1).DataType))
+    # for b in range(img_data.shape[2]):
+    #     img_data[:, :, b] = naip_ds.GetRasterBand(b + 1).ReadAsArray()
+    
+    img_data = tifffile.imread(filepath)
     pil = np.array(img_data)
     pil = pil.reshape((256,256,3))
     pil = pil/255
@@ -267,11 +274,13 @@ if __name__ == '__main__':
     # image_path = '/home/geoint/tri/va059/train/sat/number13458.TIF'
     # mask_true_path = '/home/geoint/tri/va059/train/map/number13458.TIF'
 
-    # image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
-    # mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
+    image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+    mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
-    image_path = '/home/geoint/tri/pa101/test/sat/number13376.TIF'
-    mask_true_path = '/home/geoint/tri/pa101/test/map/number13376.TIF'
+    # image_path = '/home/geoint/tri/pa101/test/sat/number13376.TIF'
+    # mask_true_path = '/home/geoint/tri/pa101/test/map/number13376.TIF'
+
+    im_name = image_path[-15:-4]
 
     use_cuda = True
     #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -356,37 +365,39 @@ if __name__ == '__main__':
 
     #print(np.unique(label))
 
-    image_name = '/home/geoint/tri/github_files/results_paper1/image_1/input_image.png'
-    plt.imshow(img_1)
-    plt.axis('off')
-    plt.savefig(image_name, bbox_inches='tight')
-    plt.show()
+    # image_name = '/home/geoint/tri/github_files/results_paper1/image_1/input_image.png'
+    # plt.imshow(img_1)
+    # plt.axis('off')
+    # plt.savefig(image_name, bbox_inches='tight')
+    # plt.close()
 
-    label_name = '/home/geoint/tri/github_files/results_paper1/image_1/groundtruth.png'
-    plt.imshow(label, cmap = colormap)
-    plt.axis('off')
-    plt.savefig(label_name, bbox_inches='tight')
-    plt.show()
+    # label_name = '/home/geoint/tri/github_files/results_paper1/image_1/groundtruth.png'
+    # plt.imshow(label, cmap = colormap)
+    # plt.axis('off')
+    # plt.savefig(label_name, bbox_inches='tight')
+    # plt.close()
 
 
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
 
-    iteration = 1
+    iteration = 20
 
     # arrays for typical UNet results
     base_balanced_acc_arr = np.zeros((iteration))
     base_f1_arr = np.zeros((iteration,2))
     base_precision_arr = np.zeros((iteration,2))
     base_recall_arr = np.zeros((iteration,2))
+    base_iou_arr = np.zeros((iteration,2))
 
     ## arrays for RQUNet-VAE results
     balanced_acc_arr = np.zeros((iteration))
     f1_arr = np.zeros((iteration, 2))
     precision_arr = np.zeros((iteration,2))
     recall_arr = np.zeros((iteration,2))
+    iou_arr = np.zeros((iteration,2))
 
-
+    
     for i in range(iteration):
 
         baseline_mask = predict_img(net=net_1,
@@ -405,16 +416,21 @@ if __name__ == '__main__':
         
         # baseline plot
 
-        base_cnf_matrix, base_accuracy, base_balanced_accuracy, base_f1, base_precision, base_recall = confusion_matrix_func(
+        base_cnf_matrix, base_accuracy, base_balanced_accuracy, \
+            base_f1, base_precision, base_recall, base_iou = confusion_matrix_func(
                 y_true=label, y_pred=baseline_mask, nclasses=len(classes), norm=True
             )
+
+        # print(base_accuracy)
 
         base_balanced_acc_arr[i] = base_balanced_accuracy
         base_f1_arr[i,:]= base_f1
         base_precision_arr[i,:] = base_precision
         base_recall_arr[i,:] = base_recall
+        base_iou_arr[i,:] = base_iou
 
-        cnf_matrix, accuracy, balanced_accuracy, f1, precision, recall = confusion_matrix_func(
+        cnf_matrix, accuracy, balanced_accuracy, \
+             f1, precision, recall, iou = confusion_matrix_func(
                 y_true=label, y_pred=mask, nclasses=len(classes), norm=True
             )
 
@@ -422,6 +438,7 @@ if __name__ == '__main__':
         f1_arr[i,:]= f1
         precision_arr[i,:] = precision
         recall_arr[i,:] = recall
+        iou_arr[i,:] = iou
 
         # if im_type == 'sentinel':
         #     plot_img_and_mask_4(img, label, mask)
@@ -451,6 +468,10 @@ if __name__ == '__main__':
     base_recall_mean = np.mean(base_recall_arr, axis=0)
     base_recall_std = np.std(base_recall_arr, axis=0)
 
+    base_iou_mean = np.mean(base_iou_arr, axis=0)
+    base_iou_std = np.std(base_iou_arr, axis=0)
+
+
     #print("Baseline Overall Accuracy Mean: ", base_accuracy)
     print("Baseline Balanced Accuracy Mean: ", base_bal_acc_mean)
     print("Baseline Balanced Accuracy Std: ", base_bal_acc_std)
@@ -460,6 +481,8 @@ if __name__ == '__main__':
     print("Baseline Precision Std: ", base_precision_std)
     print("Baseline Recall Mean: ", base_recall_mean)
     print("Baseline Recall Std: ", base_recall_std)
+    print("Baseline IoU Mean: ", base_iou_mean)
+    print("Baseline IoU Std: ", base_iou_std)
 
     bal_acc_mean = np.mean(balanced_acc_arr)
     bal_acc_std = np.std(balanced_acc_arr)
@@ -470,6 +493,9 @@ if __name__ == '__main__':
     recall_mean = np.mean(recall_arr, axis=0)
     recall_std = np.std(recall_arr, axis=0)
 
+    iou_mean = np.mean(iou_arr, axis=0)
+    iou_std = np.std(iou_arr, axis=0)
+
     #print("Overall Accuracy: ", accuracy)
     print("Balanced Accuracy Mean: ", bal_acc_mean)
     print("Balanced Accuracy Std: ", bal_acc_std)
@@ -479,3 +505,24 @@ if __name__ == '__main__':
     print("Precision Std: ", precision_std)
     print("Recall Mean: ", recall_mean)
     print("Recall Std: ", recall_std)
+    print("IoU Mean: ", iou_mean)
+    print("IoU Std: ", iou_std)
+
+    file = open('/home/geoint/tri/github_files/results_paper1/image_1/stats_results.txt', 'w')
+
+    file.write(f'Baseline Typical UNet for {im_name}\n')
+    file.write(f'Class: [impervious vegetation]\n')
+    file.writelines(f'Baseline accuracy: {np.round(base_bal_acc_mean,3)} +- {np.round(base_bal_acc_std,3)}\n')
+    file.writelines(f'Baseline F1 score: {np.round(base_f1_mean,3)} +- {np.round(base_f1_std,3)}\n')
+    file.writelines(f'Baseline recall: {np.round(base_recall_mean,3)} +- {np.round(base_recall_std,3)}\n')
+    file.writelines(f'Baseline precision: {np.round(base_precision_mean,3)} +- {np.round(base_precision_std,3)}\n')
+    file.writelines(f'Baseline IoU: {np.round(base_iou_mean,3)} +- {np.round(base_iou_std,3)}\n')
+
+    file.writelines(f'RieszQuincunx-UNet-VAE for {im_name}\n')
+    file.writelines(f'accuracy: {np.round(bal_acc_mean,3)} +- {np.round(bal_acc_std,3)}\n')
+    file.writelines(f'F1 score: {np.round(f1_mean,3)} +- {np.round(f1_std,3)}\n')
+    file.writelines(f'recall: {np.round(recall_mean,3)} +- {np.round(recall_std,3)}\n')
+    file.writelines(f'precision: {np.round(precision_mean,3)} +- {np.round(precision_std,3)}\n')
+    file.writelines(f'IoU: {np.round(iou_mean,3)} +- {np.round(iou_std,3)}\n')
+
+    file.close()

@@ -27,6 +27,9 @@ class RDN(nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters())
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[50, 75, 100], gamma=0.5)
 
+        self.in_channels = channel
+        self.num_classes = channel
+
     def forward(self,x):
         f_ = self.SFF1(x)
         f_0 = self.SFF2(f_)
@@ -40,6 +43,8 @@ class RDN(nn.Module):
         f_upconv = self.upconv(f_DF)
         f_upscale = self.pixelshuffle(f_upconv)
         f_conv2 = self.conv2(f_upscale)
+
+        print(f_conv2.shape)
         return f_conv2
 
 

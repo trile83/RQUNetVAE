@@ -13,7 +13,7 @@ The data generation process for PyTorch DataLoader in the training script is use
 
 ## On the main branch:
 ### When users already have sets of small cut of satellite images (e.g. 256x256) for efficient computation.
-To run the training file for segmenetation, users can run the following command: <br>
+To run the training file for segmentation, users can run the following command: <br>
 ```python unet_vae_2class_segment_train.py```
 -Users can specify the path to store the model since it would save every epoch.<br>
 

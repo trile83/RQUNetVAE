@@ -42,3 +42,13 @@ In the "unetvae_reconstruct_predict.py" file<br>
 3/ Users can change the segmentation option to perform prediction of reconstruction: "segment=False" is for reconstruction.<br>
 4/ Users can change the alpha level to perform prediction of reconstruction: between 0 and 1 for 'unet_vae_RQ_scheme1'. The larger the alpha, the smoother the image after reconstruction, to perform image denoising.<br>
 5/ Users can change the image type to perform prediction of reconstruction: the current setup is to condition between Sentinel2 and NAIP data, using image path, to determine the normalization process, should change it accordingly. Recommendations: 'im_type=sentinel'.<br>
+
+### Running Autolabeler code
+File name: autolabeler_dmv_dtree_lc_combined_agg.py
+Extract all the pixels in the HLS imagery, and sample them according to the sample size. The sampled pixel has attributes: 'nlcd_class','B02','B03','B04','B05','B06','B07','Fmask','PixID','NDVI','SAVI','NDBSI','NBRI','NDSI','NDBBBI',and 'Prod'(product). 
+
+Then train a Decision Tree with sampled pixels and apply it to classify land cover label 
+
+To run the file, users can run the following command:
+```python autolabeler_dmv_dtree_lc_combined_agg.py```
+

@@ -64,7 +64,7 @@ def confusion_matrix_func(y_true=[], y_pred=[], nclasses=3, norm=True):
     precision = precision_score(y_true, y_pred, average=None)
     recall = recall_score(y_true, y_pred, average=None)
 
-    iou = jaccard_score(y_pred, y_true, average=None)
+    iou = jaccard_score(y_pred, y_true, average="micro")
 
     # print(classification_report(y_true, y_pred))
 
@@ -187,10 +187,10 @@ def predict_img(net,
                 out_threshold=0.5):
     net.eval()
 
-    if image_option=='clean':
-        img = jpg_to_tensor(filepath)[0] ## clean image
-    elif image_option=='noisy':
-        img = jpg_to_tensor(filepath)[1] ## noisy image
+    # if image_option=='clean':
+    #     img = jpg_to_tensor(filepath)[0] ## clean image
+    # elif image_option=='noisy':
+    #     img = jpg_to_tensor(filepath)[1] ## noisy image
 
     img = img.to(device=device, dtype=torch.float32)
 
@@ -274,11 +274,14 @@ if __name__ == '__main__':
     # image_path = '/home/geoint/tri/va059/train/sat/number13458.TIF'
     # mask_true_path = '/home/geoint/tri/va059/train/map/number13458.TIF'
 
-    image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
-    mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
+    # image_path = '/home/geoint/tri/pa101/test/sat/number10698.TIF'
+    # mask_true_path = '/home/geoint/tri/pa101/test/map/number10698.TIF'
 
     # image_path = '/home/geoint/tri/pa101/test/sat/number13376.TIF'
     # mask_true_path = '/home/geoint/tri/pa101/test/map/number13376.TIF'
+
+    image_path = '/home/geoint/tri/md013/val/sat/number30719.TIF'
+    mask_true_path = '/home/geoint/tri/md013/val/map/number30719.TIF'
 
     im_name = image_path[-15:-4]
 
@@ -336,7 +339,6 @@ if __name__ == '__main__':
     net_1.to(device=device)
     net_1.load_state_dict(torch.load(model_unet_jaxony, map_location=device))
     
-
     ###
     classes = ['Tree', 'Concrete']  # 6-Cloud not present
     colors = ['forestgreen','orange']
@@ -353,8 +355,9 @@ if __name__ == '__main__':
 
     ## get ground truth label
     naip_fn = mask_true_path
-    data= rio.open(naip_fn)
-    img_data = data.read([1])
+    # data= rio.open(naip_fn)
+    # img_data = data.read([1])
+    img_data = tifffile.imread(naip_fn)
 
     label = np.array(img_data)
     label = label.reshape((256,256))
@@ -362,21 +365,6 @@ if __name__ == '__main__':
     label[label == 1] = 0
     label[label == 2] = 1
     label[label == 3] = 1
-
-    #print(np.unique(label))
-
-    # image_name = '/home/geoint/tri/github_files/results_paper1/image_1/input_image.png'
-    # plt.imshow(img_1)
-    # plt.axis('off')
-    # plt.savefig(image_name, bbox_inches='tight')
-    # plt.close()
-
-    # label_name = '/home/geoint/tri/github_files/results_paper1/image_1/groundtruth.png'
-    # plt.imshow(label, cmap = colormap)
-    # plt.axis('off')
-    # plt.savefig(label_name, bbox_inches='tight')
-    # plt.close()
-
 
     #for i, filename in enumerate(in_files):
     logging.info(f'\nPredicting image {image_path} ...')
@@ -388,14 +376,14 @@ if __name__ == '__main__':
     base_f1_arr = np.zeros((iteration,2))
     base_precision_arr = np.zeros((iteration,2))
     base_recall_arr = np.zeros((iteration,2))
-    base_iou_arr = np.zeros((iteration,2))
+    base_iou_arr = np.zeros((iteration))
 
     ## arrays for RQUNet-VAE results
     balanced_acc_arr = np.zeros((iteration))
     f1_arr = np.zeros((iteration, 2))
     precision_arr = np.zeros((iteration,2))
     recall_arr = np.zeros((iteration,2))
-    iou_arr = np.zeros((iteration,2))
+    iou_arr = np.zeros((iteration))
 
     
     for i in range(iteration):
@@ -421,14 +409,13 @@ if __name__ == '__main__':
                 y_true=label, y_pred=baseline_mask, nclasses=len(classes), norm=True
             )
 
-        # print(base_accuracy)
-
         base_balanced_acc_arr[i] = base_balanced_accuracy
         base_f1_arr[i,:]= base_f1
         base_precision_arr[i,:] = base_precision
         base_recall_arr[i,:] = base_recall
-        base_iou_arr[i,:] = base_iou
+        base_iou_arr[i] = base_iou
 
+        ## rqunet denoise
         cnf_matrix, accuracy, balanced_accuracy, \
              f1, precision, recall, iou = confusion_matrix_func(
                 y_true=label, y_pred=mask, nclasses=len(classes), norm=True
@@ -438,16 +425,7 @@ if __name__ == '__main__':
         f1_arr[i,:]= f1
         precision_arr[i,:] = precision
         recall_arr[i,:] = recall
-        iou_arr[i,:] = iou
-
-        # if im_type == 'sentinel':
-        #     plot_img_and_mask_4(img, label, mask)
-        # else:
-        #     plot_img_and_mask_3(img, label, mask, balanced_accuracy)
-        #plot_img_and_mask_2(img, mask)
-
-
-        ### end loop
+        iou_arr[i] = iou
 
     #print(f1_arr)
 
@@ -468,8 +446,8 @@ if __name__ == '__main__':
     base_recall_mean = np.mean(base_recall_arr, axis=0)
     base_recall_std = np.std(base_recall_arr, axis=0)
 
-    base_iou_mean = np.mean(base_iou_arr, axis=0)
-    base_iou_std = np.std(base_iou_arr, axis=0)
+    base_iou_mean = np.mean(base_iou_arr)
+    base_iou_std = np.std(base_iou_arr)
 
 
     #print("Baseline Overall Accuracy Mean: ", base_accuracy)
@@ -481,8 +459,8 @@ if __name__ == '__main__':
     print("Baseline Precision Std: ", base_precision_std)
     print("Baseline Recall Mean: ", base_recall_mean)
     print("Baseline Recall Std: ", base_recall_std)
-    print("Baseline IoU Mean: ", base_iou_mean)
-    print("Baseline IoU Std: ", base_iou_std)
+    print("Baseline mIoU Mean: ", base_iou_mean)
+    print("Baseline mIoU Std: ", base_iou_std)
 
     bal_acc_mean = np.mean(balanced_acc_arr)
     bal_acc_std = np.std(balanced_acc_arr)
@@ -493,8 +471,8 @@ if __name__ == '__main__':
     recall_mean = np.mean(recall_arr, axis=0)
     recall_std = np.std(recall_arr, axis=0)
 
-    iou_mean = np.mean(iou_arr, axis=0)
-    iou_std = np.std(iou_arr, axis=0)
+    iou_mean = np.mean(iou_arr)
+    iou_std = np.std(iou_arr)
 
     #print("Overall Accuracy: ", accuracy)
     print("Balanced Accuracy Mean: ", bal_acc_mean)
@@ -505,7 +483,7 @@ if __name__ == '__main__':
     print("Precision Std: ", precision_std)
     print("Recall Mean: ", recall_mean)
     print("Recall Std: ", recall_std)
-    print("IoU Mean: ", iou_mean)
+    print("mIoU Mean: ", iou_mean)
     print("IoU Std: ", iou_std)
 
     file = open('/home/geoint/tri/github_files/results_paper1/image_1/stats_results.txt', 'w')

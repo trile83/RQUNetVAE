@@ -96,13 +96,21 @@ def data_generator(files, size=256, mode="train", batch_size=6):
         X_noise = []
 
         row,col,ch= X[0].shape
-        sigma = 0.08
+        sigma = 0.05
         for img in X:
             noisy = img + sigma*np.random.randn(row,col,ch)
             X_noise.append(noisy)
         X_noise = np.array(X_noise)
         yield X_noise, X
 
+def rescale(image): ## function to rescale image for visualization
+    map_img =  np.zeros(image.shape)
+    for band in range(3):
+        p2, p98 = np.percentile(image[:,:,band], (2, 98))
+        map_img[:,:,band] = exposure.rescale_intensity(image[:,:,band], in_range=(p2, p98))
+    return map_img
+
+    
 class satDataset(Dataset):
     'Characterizes a dataset for PyTorch'
     def __init__(self, X, Y):
@@ -157,31 +165,23 @@ def read_large_scene(filepath, train_size, test_size, input_size):
     if np.amax(img) > 1:
         img = np.where(img > 1, 1, img)
     img = np.float32(img)
-    print(np.amin(img),np.max(img))
-    print(img.shape)
+    # print(np.amin(img),np.max(img))
+    # print(img.shape)
     
     img = np.transpose(img, (1,2,0))
 
-    print(img.shape)
+    img = rescale(img)
+
+    img = normalize_image(img)
+
+    img = img[:3000,:3000,:]
+
+    # print(img.shape)
+
     # image will have dimension (h,w,c) and don't need to reshape
     # ---------------------------------------------------------------
 
-    # image_input_path = 'C:/Users/hthai7/Desktop/Python/VA_Construction_10Band_Plus_QA/Image_Construction/'
-
-    # Pre-processing data:
-    # if np.amin(img) < 0:
-    #     img = np.where(img < 0, 0, img)
-    # if np.amax(img) > 1:
-    #     img = np.where(img > 1, 1, img)
-    # img = np.float32(img)
-    # print(np.amin(img),np.max(img))
-    # img = np.transpose(img, (1, 2, 0))
-
     h, w, c = img.shape
-
-    train_size = 100 
-    test_size = 10 
-    input_size = 256
 
     I = np.random.randint(0, h-input_size, size=train_size+test_size)
     J = np.random.randint(0, w-input_size, size=train_size+test_size)
@@ -229,8 +229,8 @@ def train_net(net,
     # val_images = images[100:105]
     # val_labels = labels[100:105]
 
-    train_size = 100 
-    test_size = 10 
+    train_size = 100
+    test_size = 5
     input_size = 256
 
     filepath = '/home/geoint/tri/RQUNet-sup-exp/data/2019059/train/sat/2019059.hdf'
@@ -239,10 +239,19 @@ def train_net(net,
     x_train = X[:train_size]
     x_test = X[train_size:]
 
-    train_images = x_train
+    ## add noise
+    X_noise = []
+    row,col,ch= X[0].shape
+    sigma = 0.05
+    for img in X:
+        noisy = img + sigma*np.random.randn(row,col,ch)
+        X_noise.append(noisy)
+    X_noise = np.array(X_noise)
+
+    train_images = X_noise[:train_size]
     train_labels = x_train
 
-    val_images = x_test
+    val_images = X_noise[train_size:]
     val_labels = x_test
 
     # 2. Split into train / validation partitions
@@ -286,10 +295,14 @@ def train_net(net,
     # criterion = nn.MSELoss()
     global_step = 0
 
-
-    criterion = net.criterion
-    optimizer = net.optimizer
-    scheduler = net.scheduler
+    if unet_option == 'rdn':
+        criterion = net.criterion
+        optimizer = net.optimizer
+        scheduler = net.scheduler
+    else:
+        optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)
+        criterion = nn.MSELoss()
 
     #dummy index to provide names to output files
     save_img_ind = 0
@@ -332,7 +345,7 @@ def train_net(net,
                     kl_loss = torch.zeros((1)).cuda()
 
 
-                elif unet_option == 'cnn-denoise':
+                elif unet_option == 'rdn':
                     output = output
 
                     loss = criterion(output, true_masks)
@@ -395,7 +408,7 @@ def train_net(net,
                 
             # Validation
             valid_loss = 0.0
-            test(epoch, val_loader, net, criterion)
+            # test(epoch, val_loader, net, criterion)
             net.eval()     # Optional when not using Model Specific layer
             for batch_val in val_loader:
                 # Transfer Data to GPU if available
@@ -456,7 +469,7 @@ def train_net(net,
                 # print("valid_loss: ", valid_loss)
                 # Saving State Dict
                 Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-                torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_va059_11-27_denoise.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
+                torch.save(net.state_dict(), str(dir_checkpoint / 'checkpoint_{model}_epoch{number}_va059_11-29_denoise.pth'.format(model=unet_option, number=epoch + 1, alpha=alpha)))
 
     plt.plot(loss_items['total_loss'])
     # plt.plot(loss_items['recon_loss'], 'r--', loss_items['kl_loss'], 'b--', loss_items['total_loss'], 'g')
@@ -481,7 +494,8 @@ if __name__ == '__main__':
     alpha = 0.3
     segment = False
     class_num = 3
-    unet_option = "cnn-denoise"
+    unet_option = "unet_vae_old" #"rdn"
+    lr = 1e-4
 
     if unet_option == 'unet_vae_1':
         net = UNet_VAE(class_num)
@@ -498,8 +512,8 @@ if __name__ == '__main__':
     elif unet_option == 'unet_vae_RQ_torch':
         net = UNet_VAE_RQ_old_torch(class_num, segment, alpha)
 
-    elif unet_option == 'cnn-denoise':
-        net = RDN(channel = 3,growth_rate = 64,rdb_number = 3,upscale_factor=1)
+    elif unet_option == 'rdn':
+        net = RDN(channel = 3,growth_rate = 64,rdb_number = 3,upscale_factor=1,learning_rate = lr)
 
     ### check parameters
     # for name, param in net.named_parameters():
@@ -525,8 +539,8 @@ if __name__ == '__main__':
     try:
         train_net(net=net,
                   epochs=50,
-                  batch_size=5,
-                  learning_rate=1e-4,
+                  batch_size=1,
+                  learning_rate=lr,
                   device=device,
                   img_scale=1,
                   val_percent=10/100,

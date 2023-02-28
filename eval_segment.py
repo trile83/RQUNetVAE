@@ -85,9 +85,9 @@ if __name__ == '__main__':
 
     name = '/home/geoint/tri/github_files/results_paper1/avg_accuracy_rqunet_vs_unet_plot.png'
     plt.title('Sigma vs Class-balanced Accuracy')
-    plt.plot(sigma_range, sigma_acc_unet_jaxony, label = 'typical Unet')
+    plt.plot(sigma_range, sigma_acc_unet_jaxony, label = 'typical UNet')
     plt.fill_between(sigma_range, sigma_acc_unet_jaxony-std_unet_jaxony, sigma_acc_unet_jaxony+std_unet_jaxony, alpha=0.5)
-    plt.plot(sigma_range, sigma_acc_unet_vae_rq, label = 'RQUnet-VAE alpha=0.5')
+    plt.plot(sigma_range, sigma_acc_unet_vae_rq, label = 'RQUNet-VAE alpha=0.5')
     plt.fill_between(sigma_range, sigma_acc_unet_vae_rq-std_unet_vae_rq, sigma_acc_unet_vae_rq+std_unet_vae_rq, alpha=0.5)
     #plt.plot(sigma_range, sigma_acc_unet_rq, label = 'RQUnet alpha=0.5')
     #plt.fill_between(sigma_range, sigma_acc_unet_rq-std_unet_rq, sigma_acc_unet_rq+std_unet_rq, alpha=0.5)

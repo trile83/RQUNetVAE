@@ -10,7 +10,7 @@ arXiv:1802.08797 [cs.CV]
 https://arxiv.org/abs/1802.08797
 '''
 class RDN(nn.Module):
-    def __init__(self,channel,growth_rate,rdb_number,upscale_factor):
+    def __init__(self,channel,growth_rate,rdb_number,upscale_factor, learning_rate):
         super(RDN,self).__init__()
         self.SFF1 = nn.Conv2d(in_channels = channel,out_channels = 64,kernel_size = 3,padding = 1 , stride = 1)
         self.SFF2 = nn.Conv2d(in_channels = 64,out_channels = 64,kernel_size = 3,padding = 1 , stride = 1)
@@ -24,7 +24,7 @@ class RDN(nn.Module):
         self.conv2 = nn.Conv2d(in_channels = 64,out_channels = channel,kernel_size = 3,padding = 1 )
 
         self.criterion = nn.L1Loss() 
-        self.optimizer = torch.optim.Adam(self.parameters())
+        self.optimizer = torch.optim.Adam(self.parameters(), lr = learning_rate)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[50, 75, 100], gamma=0.5)
 
         self.in_channels = channel

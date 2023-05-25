@@ -11,6 +11,9 @@ In this study, we used satellite images from National Agriculture Imagery Progra
 The data is preprocessed to the size 256x256 for training and prediction stages.
 The data generation process for PyTorch DataLoader in the training script is used for the data with a specific path type. For example, Sentinel-2 input images have the path "sentinel/train/sat/<image_name>.tif" and the input masks have the path "sentinel/train/map/<image_name>.tif". Input image and mask must have the same name.<br>
 
+## Results
+![Denoised Video](/figs/video_rgb_1932_new.gif) <br>
+
 ## On the main branch:
 ### When users already have sets of small cut of satellite images (e.g. 256x256) for efficient computation.
 To run the training file for segmentation, users can run the following command: <br>

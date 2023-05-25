@@ -31,9 +31,9 @@ im_type = image_path[30:38]
 im_type = 'sentinel'
 print('image type: ', im_type)
 segment=False
-alpha = 0.0
+alpha = 0.02
 unet_option = 'unet_vae_RQ_scheme1' # options: 'unet_vae_old','unet_vae_RQ_scheme1' 'unet_vae_RQ_scheme3'
-image_option = "clean" # "clean" or "noisy"
+image_option = "noisy" # "clean" or "noisy"
 
 ##################################
 def rescale(image): ## function to rescale image for visualization
@@ -84,7 +84,7 @@ def jpg_to_tensor(filepath=image_path):
     # print(np.min(pil))
 
     row,col,ch= pil.shape
-    sigma = 0.01 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
+    sigma = 0.02 ## choosing sigma based on the input images, 0.1-0.3 for NAIP images, 0.002 to 0.01 for sentinel2 images
     noisy = pil + sigma*np.random.randn(row,col,ch)
 
     transform_tensor = transforms.ToTensor()

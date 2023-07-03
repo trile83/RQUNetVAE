@@ -713,7 +713,7 @@ class UNet_VAE_Block(nn.Module):
 
 
 class UNet_VAE_Stacked(nn.Module):
-    def __init__(self, num_classes, segment, alpha, device, model_weight, in_channels=3, unet_num_block=20):
+    def __init__(self, num_classes, segment, alpha, device, model_weight, in_channels=3, unet_num_block=10):
         """
         Arguments:
         """
@@ -727,7 +727,7 @@ class UNet_VAE_Stacked(nn.Module):
         self.unet_blocks = []
 
         for i in range(self.unet_num_block):
-            block = UNet_VAE_Block(3, segment, alpha)
+            block = UNet_VAE_Block(num_classes, segment, alpha, in_channels)
             if model_weight is not None:
                 block.load_state_dict(torch.load(model_weight))
             self.unet_blocks.append(block)

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as pltc
 import numpy as np
 import matplotlib.patches as mpatches
+from collections import deque
 
 def plot_img_and_mask(img, mask):
     classes = mask.shape[0] if len(mask.shape) > 2 else 1
@@ -135,7 +136,7 @@ def plot_img_and_mask_5(image, mask_true, mask_pred):
     # put those patched as legend-handles into the legend
     plt.show()
 
-def plot_img_and_mask_recon(img, mask):
+def plot_img_and_mask_recon(img, mask, name):
     plt.figure(figsize=(20,20))
     plt.subplot(1,2,1)
     plt.title("Sat")
@@ -144,6 +145,7 @@ def plot_img_and_mask_recon(img, mask):
     plt.title("Reconstruction")
     #values = np.unique(y.ravel())
     plt.imshow(mask)
+    plt.savefig(f"/home/geoint/tri/stacked-unetvae-hls-video/{name}.png", dpi=300, bbox_inches='tight')
     plt.show()
 
 
@@ -203,3 +205,32 @@ def plot_pred_only(mask_pred, image_name, accuracy=0):
     plt.axis('off')
     plt.savefig(image_name, bbox_inches='tight')
     plt.show()
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+        self.local_history = deque([])
+        self.local_avg = 0
+        self.history = []
+        self.dict = {} # save all data values here
+        self.save_dict = {} # save mean and std here, for summary table
+
+    def update(self, val, n=1, history=0, step=5):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+        if history:
+            self.history.append(val)
+        if step > 0:
+            self.local_history.append(val)
+            if len(self.local_history) > step:
+                self.local_history.popleft()
+            self.local_avg = np.average(self.local_history)

@@ -225,7 +225,7 @@ class UNet_VAE_old(nn.Module):
         self.up_convs = nn.ModuleList(self.up_convs)
 
         # the dimension before flatten is 1024 x 16 x 16 = 262144
-        self.fc1 = nn.Linear(enc_out_dim * 16 * 16, latent_dim)
+        self.fc1 = nn.Linear(enc_out_dim * 16 * 16, latent_dim) ## if img dim = 256, then 16*16
         self.fc2 = nn.Linear(enc_out_dim * 16 * 16, latent_dim)
         self.fc3 = nn.Linear(latent_dim, enc_out_dim * 16 * 16)
         self.act = nn.ReLU()
@@ -268,7 +268,7 @@ class UNet_VAE_old(nn.Module):
         #self.tau += 1
         #print('tau: ', self.tau)
 
-        print("x shape: ", x.shape)
+        # print("x shape: ", x.shape)
 
         s_dict = {}  
         for i, module in enumerate(self.down_convs):

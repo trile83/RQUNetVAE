@@ -17,23 +17,23 @@ The data generation process for PyTorch DataLoader in the training script is use
 ## On the main branch:
 ### When users already have sets of small cut of satellite images (e.g. 256x256) for efficient computation.
 To run the training file for segmentation, users can run the following command: <br>
-```python unet_vae_2class_segment_train.py```
+```python unet_vae_2class_segment_train.py``` <br>
 -Users can specify the path to store the model since it would save every epoch.<br>
 
 To run the predict file for segmentation, users can run the the following command: <br>
-```python unet_vae_2class_segment_predict.py```
+```python unet_vae_2class_segment_predict.py``` <br>
 -User will need to specify the path to load the saved model in "model_saved" variable in the script (usually inside the checkpoints directory).<br>
 
 To run the training file for reconstruction, users can run the the following command: <br>
-```python unet_vae_recon_train.py```
+```python unet_vae_recon_train.py``` <br>
 -Users can specify the path to store the model since it would save every epoch.<br>
 
 To run the predict file for reconstruction for one image, users can run the following command: <br>
-```python unetvae_reconstruct_predict.py```
+```python unetvae_reconstruct_predict.py``` <br>
 -User will need to specify the path to load the saved model in "model_saved" variable in the script (usually inside the checkpoints directory).<br>
 
 To run the predict file for batch of images, users can run the following command: <br>
-```python unetvae_recon_predict_batch.py```
+```python unetvae_recon_predict_batch.py``` <br>
 -User will need to specify the path to load the saved model in "model_saved" variable in the script.<br>
 
 In the ```unetvae_reconstruct_predict.py``` file<br>
@@ -44,7 +44,7 @@ In the ```unetvae_reconstruct_predict.py``` file<br>
 5/ Users can change the image type to perform prediction of reconstruction: the current setup is to condition between Sentinel2 and NAIP data, using image path, to determine the normalization process, should change it accordingly. Recommendations: 'im_type=sentinel'.<br>
 
 ### When users only have large satellite imagery that requires cutting smaller tiles on the fly
-Run the script ```train_large_scene.py``` and ```predict_large_scene.py```.
+Run the script ```train_large_scene.py``` and ```predict_large_scene.py```.<br>
 
 In the ```predict_large_scene.py``` file<br>
 1/ Users can change the UNet option to perform prediction of reconstruction: 'unet_vae_old', 'unet_vae_RQ_scheme1', or 'unet_vae_RQ_scheme3'.<br>
